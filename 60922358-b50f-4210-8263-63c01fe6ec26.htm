@@ -1,0 +1,3152 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5, user-scalable=yes" />
+    <title>Manifold — Fuel Installment Ledger</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js">
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js">
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js">
+    </script>
+    <!-- Google Identity Services for Drive API -->
+    <script src="https://accounts.google.com/gsi/client" async defer>
+    </script>
+    <style>
+        /* ===== THEME VARIABLES ===== */
+        :root {
+            --ink: #12171c;
+            --panel: #1a2129;
+            --panel-2: #212a33;
+            --paper: #ece7da;
+            --paper-dim: #b7b0a0;
+            --line: #2c363f;
+            --line-soft: #333f49;
+            --amber: #e6a13a;
+            --amber-dim: #c68a2e;
+            --diesel: #c1502e;
+            --diesel-soft: #3a2420;
+            --gauge-ok: #7fae62;
+            --gauge-warn: #d9a441;
+            --gauge-low: #c1502e;
+            --shadow: 0 18px 40px -12px rgba(0, 0, 0, 0.55);
+            --shadow-sm: 0 6px 16px -6px rgba(0, 0, 0, 0.4);
+            --radius: 14px;
+            --radius-sm: 9px;
+            --ease: cubic-bezier(0.4, 0, 0.2, 1);
+            --chart-blue: #4a8db7;
+            --chart-green: #7fae62;
+            --chart-amber: #d9a441;
+            --chart-red: #c1502e;
+            --chart-purple: #8b6b9e;
+            --chart-teal: #4a9e9e;
+            --chart-pink: #c97a7a;
+            --toast-bg: #0e1216;
+            --input-bg: var(--ink);
+            --scroll-track: transparent;
+            --scroll-thumb: #3a4650;
+            --scroll-thumb-hover: #4a5863;
+        }
+        [data-theme="light"] {
+            --ink: #f5f2eb;
+            --panel: #e8e2d4;
+            --panel-2: #ddd6c6;
+            --paper: #1a2129;
+            --paper-dim: #4a525d;
+            --line: #c8c0b0;
+            --line-soft: #b8b0a0;
+            --shadow: 0 18px 40px -12px rgba(0, 0, 0, 0.15);
+            --shadow-sm: 0 6px 16px -6px rgba(0, 0, 0, 0.1);
+            --toast-bg: #f0ebe0;
+            --input-bg: #faf7f0;
+            --scroll-thumb: #b8b0a0;
+            --scroll-thumb-hover: #a09888;
+        }
+        [data-theme="light"] .brand .mark {
+            color: var(--paper);
+            background: var(--amber);
+        }
+        [data-theme="light"] .add-form input,
+        [data-theme="light"] .payment-form input,
+        [data-theme="light"] .payment-form textarea,
+        [data-theme="light"] .payment-form select {
+            background: var(--input-bg);
+            color: var(--paper);
+        }
+        [data-theme="light"] .live-calc {
+            background: var(--input-bg);
+        }
+        [data-theme="light"] .toast {
+            background: var(--toast-bg);
+            color: var(--paper);
+            border-color: var(--line);
+        }
+        [data-theme="light"] .loading-screen {
+            background: var(--ink);
+        }
+        [data-theme="light"] body {
+            background: var(--ink);
+        }
+        [data-theme="light"] .stat-pill .val,
+        [data-theme="light"] .client-name {
+            color: var(--paper);
+        }
+
+        /* ===== BASE ===== */
+        * {
+            box-sizing: border-box;
+        }
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            background:
+                radial-gradient(1200px 600px at 15% -10%, #1d252d 0%, transparent 60%),
+                radial-gradient(900px 500px at 110% 10%, #221912 0%, transparent 55%),
+                var(--ink);
+            color: var(--paper);
+            font-family: 'Inter', -apple-system, sans-serif;
+            min-height: 100vh;
+            padding: 12px;
+            -webkit-tap-highlight-color: transparent;
+            transition: background 0.3s var(--ease), color 0.3s var(--ease);
+        }
+        [data-theme="light"] body {
+            background:
+                radial-gradient(1200px 600px at 15% -10%, #e8e2d4 0%, transparent 60%),
+                radial-gradient(900px 500px at 110% 10%, #ddd6c6 0%, transparent 55%),
+                var(--ink);
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--scroll-track);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--scroll-thumb);
+            border-radius: 8px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--scroll-thumb-hover);
+        }
+
+        /* ===== BRANDBAR ===== */
+        .brandbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            max-width: 1440px;
+            margin: 0 auto 12px;
+            padding: 2px 4px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .brand {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+        }
+        .brand .mark {
+            font-family: 'Oswald', sans-serif;
+            font-weight: 700;
+            font-size: 15px;
+            letter-spacing: 3px;
+            color: var(--ink);
+            background: var(--amber);
+            padding: 5px 10px;
+            border-radius: 4px;
+        }
+        .brand h1 {
+            font-family: 'Oswald', sans-serif;
+            font-weight: 500;
+            font-size: 20px;
+            letter-spacing: 0.5px;
+            margin: 0;
+            color: var(--paper);
+        }
+        .brand small {
+            display: block;
+            color: var(--paper-dim);
+            font-size: 10px;
+            letter-spacing: 1.2px;
+            text-transform: uppercase;
+            margin-top: 1px;
+        }
+        .brandbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .theme-toggle {
+            background: var(--panel-2);
+            border: 1px solid var(--line);
+            border-radius: 50%;
+            width: 34px;
+            height: 34px;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s var(--ease);
+            color: var(--paper-dim);
+        }
+        .theme-toggle:hover {
+            border-color: var(--amber);
+            color: var(--amber);
+        }
+        .save-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 10px;
+            color: var(--paper-dim);
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+        .save-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--gauge-ok);
+            transition: transform 0.3s var(--ease);
+        }
+        .save-dot.busy {
+            background: var(--amber);
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0%,
+            100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.4;
+            }
+        }
+
+        /* ===== APP WRAPPER ===== */
+        .app-wrapper {
+            max-width: 1440px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        @media (min-width: 900px) {
+            .app-wrapper {
+                flex-direction: row;
+                align-items: flex-start;
+            }
+            .sidebar {
+                position: sticky;
+                top: 12px;
+                flex: 0 0 420px;
+                max-height: calc(100vh - 24px);
+            }
+            .main-panel {
+                flex: 1;
+                min-width: 0;
+            }
+            .mobile-back {
+                display: none !important;
+            }
+        }
+        .sidebar,
+        .main-panel {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            transition: background 0.3s var(--ease), border-color 0.3s var(--ease);
+        }
+        .sidebar {
+            padding: 16px;
+        }
+
+        /* ===== STATS MINI ===== */
+        .stats-mini {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 5px;
+            margin-bottom: 12px;
+        }
+        .stat-pill {
+            background: var(--panel-2);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 6px 8px;
+            font-size: 9px;
+            font-weight: 600;
+            color: var(--paper-dim);
+            letter-spacing: 0.3px;
+            text-align: center;
+        }
+        .stat-pill .val {
+            display: block;
+            font-family: 'IBM Plex Mono', monospace;
+            color: var(--paper);
+            font-size: 13px;
+            font-weight: 600;
+            margin-top: 1px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .stat-pill.danger .val {
+            color: var(--diesel);
+        }
+        .stat-pill.amber .val {
+            color: var(--amber);
+        }
+        .stat-pill.success .val {
+            color: var(--gauge-ok);
+        }
+
+        /* ===== ADD TOGGLE / FORM ===== */
+        .add-toggle {
+            width: 100%;
+            background: var(--amber);
+            color: var(--ink);
+            border: none;
+            padding: 10px;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 13px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            transition: all 0.2s var(--ease);
+        }
+        .add-toggle:hover {
+            background: #f0b04f;
+            transform: translateY(-1px);
+        }
+        .add-form {
+            background: var(--panel-2);
+            padding: 14px;
+            border-radius: var(--radius-sm);
+            margin-bottom: 12px;
+            border: 1px solid var(--line);
+            max-height: 700px;
+            overflow-y: auto;
+            transition: max-height 0.3s var(--ease), opacity 0.3s var(--ease);
+        }
+        .add-form.hidden {
+            max-height: 0;
+            padding: 0 14px;
+            opacity: 0;
+            overflow: hidden;
+            margin-bottom: 0;
+            border: none;
+        }
+        .add-form .row-title {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .add-form .row-title strong {
+            font-family: 'Oswald', sans-serif;
+            font-size: 14px;
+            letter-spacing: 0.5px;
+            color: var(--paper);
+            font-weight: 500;
+        }
+        .edit-badge {
+            background: var(--amber);
+            color: var(--ink);
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            animation: pulse 1.5s infinite;
+        }
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+        }
+        .grid-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 6px;
+        }
+        .add-form label.fld {
+            display: block;
+            font-size: 9px;
+            color: var(--paper-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+            margin-bottom: 3px;
+            margin-top: 6px;
+        }
+        .add-form input,
+        .add-form textarea,
+        .add-form select {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid var(--line-soft);
+            border-radius: 6px;
+            font-size: 12px;
+            background: var(--input-bg);
+            color: var(--paper);
+            outline: none;
+            transition: all 0.2s var(--ease);
+            font-family: 'Inter', sans-serif;
+        }
+        .add-form input::placeholder,
+        .add-form textarea::placeholder {
+            color: #5a6670;
+        }
+        .add-form input:focus,
+        .add-form textarea:focus,
+        .add-form select:focus {
+            border-color: var(--amber);
+            box-shadow: 0 0 0 3px rgba(230, 161, 58, 0.15);
+        }
+        .add-form textarea {
+            resize: vertical;
+            min-height: 36px;
+            font-family: 'Inter', sans-serif;
+        }
+        .add-form select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='6' viewBox='0 0 8 6'%3E%3Cpath d='M4 6L0 0h8z' fill='%23b7b0a0'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            padding-right: 28px;
+        }
+        .live-calc {
+            background: var(--input-bg);
+            border: 1px dashed var(--line-soft);
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-top: 10px;
+            font-size: 10px;
+            color: var(--paper-dim);
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px 12px;
+            font-family: 'IBM Plex Mono', monospace;
+        }
+        .live-calc strong {
+            color: var(--amber);
+            font-size: 12px;
+            display: block;
+            margin-top: 1px;
+        }
+        .live-calc .grand {
+            grid-column: 1/-1;
+            text-align: center;
+            border-top: 1px solid var(--line-soft);
+            padding-top: 6px;
+            margin-top: 2px;
+        }
+        .live-calc .grand strong {
+            color: var(--diesel);
+            font-size: 15px;
+        }
+        .form-actions {
+            display: flex;
+            gap: 6px;
+            margin-top: 10px;
+        }
+        .form-actions button {
+            flex: 1;
+            padding: 9px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            transition: all 0.2s var(--ease);
+        }
+        .btn-primary {
+            background: var(--amber);
+            color: var(--ink);
+        }
+        .btn-primary:hover {
+            background: #f0b04f;
+        }
+        .btn-outline {
+            background: transparent;
+            color: var(--paper-dim);
+            border: 1px solid var(--line-soft) !important;
+        }
+        .btn-outline:hover {
+            border-color: var(--paper-dim) !important;
+            color: var(--paper);
+        }
+
+        /* ===== SEARCH + FILTER ===== */
+        .search-box {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 8px;
+        }
+        .search-box input {
+            flex: 1;
+            padding: 9px 12px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: var(--panel-2);
+            color: var(--paper);
+            font-size: 12px;
+            outline: none;
+            transition: all 0.2s var(--ease);
+        }
+        .search-box input:focus {
+            border-color: var(--amber);
+        }
+        .sort-btn {
+            background: var(--panel-2);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 7px 10px;
+            cursor: pointer;
+            color: var(--paper-dim);
+            font-size: 13px;
+            transition: all 0.2s var(--ease);
+        }
+        .sort-btn:hover {
+            border-color: var(--amber);
+            color: var(--amber);
+        }
+        .filter-row {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+        .filter-chip {
+            padding: 5px 11px;
+            border-radius: 14px;
+            border: 1px solid var(--line);
+            background: transparent;
+            font-size: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--paper-dim);
+            transition: all 0.2s var(--ease);
+            letter-spacing: 0.3px;
+        }
+        .filter-chip.active {
+            background: var(--amber);
+            color: var(--ink);
+            border-color: var(--amber);
+        }
+        .filter-chip:hover:not(.active) {
+            border-color: var(--paper-dim);
+        }
+
+        /* ===== CLIENT LIST ===== */
+        .client-list {
+            flex: 1;
+            overflow-y: auto;
+            max-height: 400px;
+            padding-right: 2px;
+        }
+        @media (max-width: 899px) {
+            .client-list {
+                max-height: 260px;
+            }
+        }
+        .client-card {
+            background: var(--panel-2);
+            padding: 10px 12px;
+            border-radius: var(--radius-sm);
+            margin-bottom: 5px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid transparent;
+            transition: all 0.2s var(--ease);
+            gap: 6px;
+            border-left: 3px solid var(--line-soft);
+            touch-action: manipulation;
+        }
+        .client-card:hover {
+            border-left-color: var(--amber-dim);
+            background: #242e37;
+        }
+        [data-theme="light"] .client-card:hover {
+            background: #d5cebe;
+        }
+        .client-card.active {
+            border-left-color: var(--amber);
+            background: #26303a;
+            box-shadow: var(--shadow-sm);
+        }
+        [data-theme="light"] .client-card.active {
+            background: #d0c8b6;
+        }
+        .client-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .client-name {
+            font-weight: 600;
+            color: var(--paper);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-size: 13px;
+        }
+        .client-balance {
+            font-size: 11px;
+            color: var(--paper-dim);
+            margin-top: 2px;
+            font-family: 'IBM Plex Mono', monospace;
+        }
+        .client-balance b {
+            color: var(--diesel);
+            font-weight: 600;
+        }
+        .client-balance b.paid-off {
+            color: var(--gauge-ok);
+        }
+        .client-actions {
+            display: flex;
+            gap: 2px;
+            flex-shrink: 0;
+        }
+        .icon-btn {
+            background: transparent;
+            border: none;
+            border-radius: 6px;
+            width: 28px;
+            height: 28px;
+            cursor: pointer;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s var(--ease);
+            opacity: 0.55;
+            color: var(--paper);
+            touch-action: manipulation;
+        }
+        .icon-btn:hover {
+            opacity: 1;
+            background: var(--line);
+        }
+        .icon-btn.danger:hover {
+            background: rgba(193, 80, 46, 0.25);
+            color: var(--diesel);
+        }
+        .icon-btn.edit:hover {
+            background: rgba(230, 161, 58, 0.2);
+            color: var(--amber);
+        }
+        .empty-list {
+            text-align: center;
+            color: var(--paper-dim);
+            padding: 30px 10px;
+            font-size: 13px;
+        }
+        .result-count {
+            text-align: center;
+            margin-top: 6px;
+            font-size: 9px;
+            color: #5a6670;
+            letter-spacing: 0.4px;
+            text-transform: uppercase;
+        }
+
+        /* ===== MAIN PANEL ===== */
+        .main-panel {
+            padding: 20px;
+            min-height: 400px;
+        }
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            border-bottom: 1px solid var(--line);
+            padding-bottom: 12px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .panel-header .titlewrap {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .panel-header h2 {
+            margin: 0;
+            font-family: 'Oswald', sans-serif;
+            font-weight: 500;
+            font-size: 20px;
+            letter-spacing: 0.3px;
+            color: var(--paper);
+        }
+        .mobile-back {
+            background: var(--panel-2);
+            border: 1px solid var(--line);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            color: var(--paper-dim);
+            font-size: 12px;
+            touch-action: manipulation;
+        }
+        .export-buttons {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+        .export-btn {
+            padding: 6px 12px;
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 700;
+            cursor: pointer;
+            color: var(--paper);
+            background: var(--panel-2);
+            transition: all 0.2s var(--ease);
+            letter-spacing: 0.4px;
+            text-transform: uppercase;
+            touch-action: manipulation;
+        }
+        .export-btn:hover {
+            transform: translateY(-2px);
+            border-color: var(--amber);
+            color: var(--amber);
+        }
+        .export-btn.primary {
+            background: var(--amber);
+            color: var(--ink);
+            border-color: var(--amber);
+        }
+        .export-btn.primary:hover {
+            background: #f0b04f;
+            color: var(--ink);
+        }
+        .export-btn.drive {
+            background: #4285f4;
+            color: #fff;
+            border-color: #4285f4;
+        }
+        .export-btn.drive:hover {
+            background: #5a95f5;
+            border-color: #5a95f5;
+        }
+
+        /* ===== ANALYTICS DASHBOARD ===== */
+        .analytics-dashboard {
+            display: none;
+            flex-direction: column;
+            gap: 18px;
+            animation: fadeIn 0.4s var(--ease);
+        }
+        .analytics-dashboard.visible {
+            display: flex;
+        }
+        .analytics-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 8px;
+        }
+        .analytics-stat-card {
+            background: var(--panel-2);
+            border: 1px solid var(--line);
+            border-radius: var(--radius-sm);
+            padding: 12px 10px;
+            text-align: center;
+            transition: all 0.2s var(--ease);
+        }
+        .analytics-stat-card:hover {
+            border-color: var(--amber-dim);
+            transform: translateY(-2px);
+        }
+        .analytics-stat-card .label {
+            font-size: 8px;
+            color: var(--paper-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 700;
+        }
+        .analytics-stat-card .value {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 17px;
+            font-weight: 600;
+            color: var(--paper);
+            margin-top: 3px;
+        }
+        .analytics-stat-card .value.amber {
+            color: var(--amber);
+        }
+        .analytics-stat-card .value.danger {
+            color: var(--diesel);
+        }
+        .analytics-stat-card .value.success {
+            color: var(--gauge-ok);
+        }
+        .analytics-stat-card .sub {
+            font-size: 9px;
+            color: var(--paper-dim);
+            margin-top: 2px;
+        }
+        .analytics-charts {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+        @media (max-width: 700px) {
+            .analytics-charts {
+                grid-template-columns: 1fr;
+            }
+        }
+        .chart-box {
+            background: var(--panel-2);
+            border: 1px solid var(--line);
+            border-radius: var(--radius-sm);
+            padding: 14px 12px 10px;
+        }
+        .chart-box .chart-title {
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--paper-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+        .chart-box canvas {
+            width: 100% !important;
+            height: auto !important;
+            max-height: 160px;
+            display: block;
+            margin: 0 auto;
+        }
+        .analytics-insights {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 8px;
+            margin-top: 2px;
+        }
+        .insight-tag {
+            background: var(--panel-2);
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
+        }
+        .insight-tag .emoji {
+            font-size: 16px;
+        }
+        .insight-tag .text {
+            color: var(--paper-dim);
+        }
+        .insight-tag .text strong {
+            color: var(--paper);
+            font-weight: 600;
+        }
+
+        /* Aging report */
+        .aging-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 6px;
+            margin-top: 6px;
+        }
+        .aging-item {
+            background: var(--panel-2);
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            padding: 8px 10px;
+            text-align: center;
+        }
+        .aging-item .label {
+            font-size: 8px;
+            color: var(--paper-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        .aging-item .value {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 14px;
+            font-weight: 600;
+            margin-top: 2px;
+        }
+        .aging-item .value.danger {
+            color: var(--diesel);
+        }
+        .aging-item .value.warn {
+            color: var(--gauge-warn);
+        }
+        .aging-item .value.ok {
+            color: var(--gauge-ok);
+        }
+
+        /* ===== CUSTOMER DETAILS ===== */
+        .customer-details {
+            display: none;
+            flex-direction: column;
+            gap: 18px;
+            animation: fadeIn 0.35s var(--ease);
+        }
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .gauge-row {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .gauge-box {
+            flex: 0 0 auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .gauge-num {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--paper);
+            margin-top: -36px;
+        }
+        .gauge-label {
+            font-size: 9px;
+            color: var(--paper-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 2px;
+        }
+        .gauge-side {
+            flex: 1;
+            min-width: 180px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .gauge-side .grow {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: var(--paper-dim);
+        }
+        .gauge-side .grow b {
+            font-family: 'IBM Plex Mono', monospace;
+            color: var(--paper);
+            font-weight: 600;
+        }
+        .gauge-side .grow b.danger {
+            color: var(--diesel);
+        }
+        .gauge-side .grow b.ok {
+            color: var(--gauge-ok);
+        }
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 8px;
+        }
+        .card {
+            background: var(--panel-2);
+            border: 1px solid var(--line);
+            padding: 12px;
+            border-radius: var(--radius-sm);
+            text-align: center;
+        }
+        .card label {
+            display: block;
+            font-size: 8.5px;
+            color: var(--paper-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 700;
+        }
+        .card div {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--paper);
+            margin-top: 4px;
+        }
+        .card .high {
+            color: var(--amber);
+        }
+        .card .danger {
+            color: var(--diesel);
+        }
+        .card .success {
+            color: var(--gauge-ok);
+        }
+        .section-title {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin: 0 0 6px 0;
+        }
+        .section-title .num {
+            font-family: 'Oswald', sans-serif;
+            font-size: 10px;
+            color: var(--ink);
+            background: var(--amber-dim);
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+        .section-title h4 {
+            margin: 0;
+            font-size: 12px;
+            color: var(--paper-dim);
+            font-weight: 600;
+            letter-spacing: 0.3px;
+            text-transform: uppercase;
+        }
+        .payment-section {
+            display: grid;
+            grid-template-columns: 1fr 1.6fr;
+            gap: 14px;
+        }
+        @media (max-width: 640px) {
+            .payment-section {
+                grid-template-columns: 1fr;
+            }
+        }
+        .payment-form {
+            background: var(--panel-2);
+            padding: 12px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--line);
+        }
+        .payment-form label {
+            font-weight: 600;
+            font-size: 10px;
+            display: block;
+            margin-bottom: 4px;
+            color: var(--paper-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+        .payment-form input,
+        .payment-form textarea,
+        .payment-form select {
+            width: 100%;
+            padding: 8px 10px;
+            margin-bottom: 8px;
+            border: 1px solid var(--line-soft);
+            border-radius: 6px;
+            font-size: 12px;
+            outline: none;
+            background: var(--input-bg);
+            color: var(--paper);
+            font-family: inherit;
+            transition: all 0.2s var(--ease);
+        }
+        .payment-form input:focus,
+        .payment-form textarea:focus,
+        .payment-form select:focus {
+            border-color: var(--amber);
+        }
+        .payment-form button {
+            width: 100%;
+            padding: 10px;
+            background: var(--gauge-ok);
+            color: var(--ink);
+            border: none;
+            border-radius: 6px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s var(--ease);
+            font-size: 12px;
+            letter-spacing: 0.4px;
+            text-transform: uppercase;
+        }
+        .payment-form button:hover {
+            background: #8dbf72;
+            transform: translateY(-1px);
+        }
+        .payment-form button:active {
+            transform: scale(0.97);
+        }
+        .table-wrap {
+            max-height: 180px;
+            overflow-y: auto;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            border: 1px solid var(--line);
+            border-radius: 6px;
+        }
+        table.data-table {
+            width: 100%;
+            min-width: 420px;
+            border-collapse: collapse;
+            font-size: 11.5px;
+        }
+        table.data-table th {
+            background: var(--panel-2);
+            padding: 7px 8px;
+            text-align: left;
+            color: var(--paper-dim);
+            font-weight: 700;
+            border-bottom: 1px solid var(--line);
+            position: sticky;
+            top: 0;
+            font-size: 9px;
+            letter-spacing: 0.4px;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+        table.data-table td {
+            padding: 7px 8px;
+            border-bottom: 1px solid var(--line);
+            color: var(--paper);
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 11px;
+            white-space: nowrap;
+        }
+        table.data-table tr:last-child td {
+            border-bottom: none;
+        }
+        table.data-table tr:hover td {
+            background: rgba(230, 161, 58, 0.05);
+        }
+        .amount-pos {
+            color: var(--gauge-ok);
+            font-weight: 600;
+        }
+        .status-paid {
+            color: var(--gauge-ok);
+            font-weight: 600;
+        }
+        .status-partial {
+            color: var(--gauge-warn);
+            font-weight: 600;
+        }
+        .status-pending {
+            color: var(--paper-dim);
+        }
+
+        /* ===== TOAST ===== */
+        .toast-container {
+            position: fixed;
+            top: 12px;
+            right: 12px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            pointer-events: none;
+            max-width: 90vw;
+        }
+        .toast {
+            background: var(--toast-bg);
+            border: 1px solid var(--line);
+            color: var(--paper);
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            pointer-events: auto;
+            animation: slideIn 0.3s var(--ease), fadeOut 0.3s var(--ease) 3.2s forwards;
+            box-shadow: var(--shadow);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            max-width: 340px;
+        }
+        .toast.success {
+            border-left: 3px solid var(--gauge-ok);
+        }
+        .toast.error {
+            border-left: 3px solid var(--diesel);
+        }
+        .toast.info {
+            border-left: 3px solid var(--amber);
+        }
+        .toast .undo-link {
+            color: var(--amber);
+            cursor: pointer;
+            text-decoration: underline;
+            font-weight: 700;
+            margin-left: auto;
+            white-space: nowrap;
+        }
+        @keyframes slideIn {
+            from {
+                transform: translateX(120%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        @keyframes fadeOut {
+            from {
+                opacity: 1;
+            }
+            to {
+                opacity: 0;
+                transform: translateY(-8px);
+            }
+        }
+
+        /* ===== LOADING ===== */
+        .loading-screen {
+            position: fixed;
+            inset: 0;
+            background: var(--ink);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 99999;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .loading-screen .mark {
+            font-family: 'Oswald', sans-serif;
+            font-weight: 700;
+            font-size: 15px;
+            letter-spacing: 3px;
+            color: var(--ink);
+            background: var(--amber);
+            padding: 6px 12px;
+            border-radius: 4px;
+        }
+        .loading-screen span {
+            color: var(--paper-dim);
+            font-size: 11px;
+            letter-spacing: 0.5px;
+        }
+
+        /* ===== NOTIFICATION BADGE ===== */
+        .notif-badge {
+            background: var(--diesel);
+            color: #fff;
+            border-radius: 50%;
+            padding: 0 6px;
+            font-size: 9px;
+            font-weight: 700;
+            min-width: 18px;
+            height: 18px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-left: 4px;
+        }
+        .notif-badge.hidden {
+            display: none;
+        }
+
+        /* ===== PRINT ===== */
+        @media print {
+            body {
+                background: #fff !important;
+                padding: 0 !important;
+            }
+            .sidebar,
+            .export-buttons,
+            .payment-form,
+            .mobile-back,
+            .toast-container,
+            .brandbar,
+            .theme-toggle,
+            .save-indicator {
+                display: none !important;
+            }
+            .main-panel {
+                box-shadow: none !important;
+                border: none !important;
+                width: 100% !important;
+                background: #fff !important;
+            }
+            .customer-details {
+                display: flex !important;
+            }
+            .analytics-dashboard {
+                display: none !important;
+            }
+            .gauge-row,
+            .summary-cards,
+            .payment-section,
+            .section-title,
+            .table-wrap {
+                break-inside: avoid;
+            }
+        }
+
+        /* ===== RESPONSIVE TWEAKS ===== */
+        @media (max-width: 480px) {
+            body {
+                padding: 8px;
+            }
+            .brand h1 {
+                font-size: 16px;
+            }
+            .brand small {
+                font-size: 8px;
+            }
+            .sidebar {
+                padding: 10px;
+            }
+            .main-panel {
+                padding: 12px;
+            }
+            .stats-mini {
+                grid-template-columns: 1fr 1fr 1fr;
+                gap: 4px;
+            }
+            .stat-pill {
+                padding: 4px 6px;
+                font-size: 8px;
+            }
+            .stat-pill .val {
+                font-size: 11px;
+            }
+            .grid-2,
+            .grid-3 {
+                grid-template-columns: 1fr;
+            }
+            .analytics-stats {
+                grid-template-columns: 1fr 1fr;
+            }
+            .analytics-charts {
+                grid-template-columns: 1fr;
+            }
+            .gauge-box svg {
+                width: 140px;
+                height: 90px;
+            }
+            .gauge-num {
+                font-size: 18px;
+                margin-top: -28px;
+            }
+            .export-btn {
+                font-size: 8px;
+                padding: 4px 8px;
+            }
+            .panel-header h2 {
+                font-size: 16px;
+            }
+            .client-card {
+                padding: 8px 10px;
+            }
+            .client-name {
+                font-size: 12px;
+            }
+            .client-balance {
+                font-size: 10px;
+            }
+            .icon-btn {
+                width: 32px;
+                height: 32px;
+                font-size: 15px;
+            }
+            .toast {
+                font-size: 11px;
+                padding: 8px 12px;
+                max-width: 280px;
+            }
+            .add-form {
+                padding: 10px;
+            }
+            .live-calc {
+                font-size: 9px;
+                padding: 8px 10px;
+            }
+            .live-calc strong {
+                font-size: 11px;
+            }
+            .table-wrap {
+                max-height: 140px;
+            }
+            table.data-table td,
+            table.data-table th {
+                padding: 5px 6px;
+                font-size: 10px;
+            }
+        }
+
+        /* swipe hint */
+        .swipe-hint {
+            font-size: 9px;
+            color: var(--paper-dim);
+            text-align: center;
+            padding: 4px 0;
+            opacity: 0.6;
+            display: none;
+        }
+        @media (pointer: coarse) {
+            .swipe-hint {
+                display: block;
+            }
+            .icon-btn {
+                width: 40px;
+                height: 40px;
+                font-size: 16px;
+            }
+            .theme-toggle {
+                width: 40px;
+                height: 40px;
+            }
+            .sort-btn,
+            .mobile-back,
+            .export-btn {
+                min-height: 40px;
+            }
+            .filter-chip {
+                padding: 8px 12px;
+            }
+            .add-form input,
+            .add-form textarea,
+            .add-form select,
+            .payment-form input,
+            .payment-form textarea,
+            .payment-form select,
+            .search-box input {
+                font-size: 16px;
+            }
+        }
+
+        /* shortcut bar */
+        .shortcut-bar {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            font-size: 9px;
+            color: var(--paper-dim);
+            padding: 4px 0 0 0;
+            border-top: 1px solid var(--line);
+            margin-top: 6px;
+        }
+        .shortcut-bar kbd {
+            background: var(--panel-2);
+            border: 1px solid var(--line);
+            border-radius: 3px;
+            padding: 1px 6px;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 8px;
+            color: var(--paper);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="loading-screen" id="loadingScreen"><div class="mark">MANIFOLD</div><span>Loading ledger…</span></div>
+    <div class="toast-container" id="toastContainer"></div>
+
+    <div class="brandbar">
+        <div class="brand">
+            <span class="mark">⛽ MFD</span>
+            <div>
+                <h1>Manifold Ledger</h1>
+                <small>Fuel Installment Management</small>
+            </div>
+        </div>
+        <div class="brandbar-actions">
+            <button class="theme-toggle" id="themeToggle" title="Toggle theme">🌙</button>
+            <div class="save-indicator">
+                <span class="save-dot" id="saveDot"></span>
+                <span id="saveText">Synced</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="app-wrapper">
+        <aside class="sidebar">
+            <div class="stats-mini" id="statsMini">
+                <span class="stat-pill">Clients<span class="val" id="statClients">0</span></span>
+                <span class="stat-pill amber">Collected<span class="val" id="statCollected">0</span></span>
+                <span class="stat-pill danger">Outstanding<span class="val" id="statOutstanding">0</span></span>
+                <span class="stat-pill success">Paid Off<span class="val" id="statPaidOff">0</span></span>
+                <span class="stat-pill amber">Interest<span class="val" id="statInterest">0</span></span>
+                <span class="stat-pill">Litres<span class="val" id="statLitres">0</span></span>
+            </div>
+
+            <button class="add-toggle" id="addToggle">+ Add Client</button>
+
+            <div class="add-form hidden" id="addForm">
+                <div class="row-title">
+                    <strong id="formTitle">New Client</strong>
+                    <span class="edit-badge" id="editBadge" style="display:none;">EDITING</span>
+                </div>
+                <label class="fld">Client Name *</label>
+                <input type="text" id="cName" placeholder="e.g. Kilimanjaro Transport Ltd" autocomplete="off" />
+                <div class="grid-2">
+                    <div><label class="fld">Litres *</label><input type="number" id="cLitres" placeholder="0.0" step="0.1" min="0.1" oninput="liveCalc()" /></div>
+                    <div><label class="fld">Price / Litre (TZS) *</label><input type="number" id="cPrice" placeholder="0" step="100" min="100" oninput="liveCalc()" /></div>
+                </div>
+                <div class="grid-2">
+                    <div><label class="fld">Interest %</label><input type="number" id="cInterest" placeholder="0" step="0.5" min="0" value="0" oninput="liveCalc()" onfocus="this.select()" /></div>
+                    <div><label class="fld">Installments</label><input type="number" id="cInstallments" placeholder="3" min="1" value="3" oninput="liveCalc()" onfocus="this.select()" /></div>
+                </div>
+                <div class="grid-3">
+                    <div><label class="fld">Phone</label><input type="text" id="cPhone" placeholder="+255..." /></div>
+                    <div><label class="fld">Email</label><input type="email" id="cEmail" placeholder="client@email.com" /></div>
+                    <div><label class="fld">Vehicle/Reg</label><input type="text" id="cVehicle" placeholder="T 123 ABC" /></div>
+                </div>
+                <div><label class="fld">Address</label><input type="text" id="cAddress" placeholder="Dar es Salaam, Tanzania" /></div>
+                <div><label class="fld">Tags (comma separated)</label><input type="text" id="cTags" placeholder="fleet, premium, corporate" /></div>
+                <div><label class="fld">Notes</label><textarea id="cNotes" rows="2" placeholder="Additional notes…"></textarea></div>
+                <div class="live-calc" id="liveCalc">
+                    <span>Principal<strong id="calcPrincipal">0</strong></span>
+                    <span>Interest<strong id="calcInterest">0</strong></span>
+                    <span>Per Installment<strong id="calcPerInstall">0</strong></span>
+                    <div class="grand">Grand Total<strong id="calcGrand">0 TZS</strong></div>
+                </div>
+                <div class="form-actions">
+                    <button class="btn-primary" id="submitBtn" onclick="addOrUpdateCustomer()">Add Customer</button>
+                    <button class="btn-outline" id="cancelEditBtn" style="display:none;" onclick="cancelEdit()">Cancel</button>
+                </div>
+                <input type="hidden" id="editingId" value="" />
+            </div>
+
+            <!-- Bulk import -->
+            <button class="add-toggle" style="background:var(--panel-2);color:var(--paper-dim);margin-bottom:8px;font-size:11px;" onclick="document.getElementById('bulkInput').click()">📥 Bulk Import (CSV/Excel)</button>
+            <input type="file" id="bulkInput" accept=".csv,.xlsx,.xls" style="display:none;" onchange="handleBulkImport(event)" />
+
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Search clients…" oninput="renderList()" autocomplete="off" />
+                <button class="sort-btn" onclick="cycleSort()" title="Sort clients">⇅</button>
+            </div>
+            <div class="filter-row">
+                <span class="filter-chip active" data-filter="all" onclick="setFilter('all',this)">All</span>
+                <span class="filter-chip" data-filter="active" onclick="setFilter('active',this)">Active</span>
+                <span class="filter-chip" data-filter="paid" onclick="setFilter('paid',this)">Paid Off</span>
+                <span class="filter-chip" data-filter="overdue" onclick="setFilter('overdue',this)">Overdue</span>
+            </div>
+            <div class="client-list" id="clientList"></div>
+            <div class="result-count"><span id="resultCount">0</span> results</div>
+            <div class="shortcut-bar">
+                <kbd>Ctrl+N</kbd> New · <kbd>Ctrl+Z</kbd> Undo · <kbd>Ctrl+Y</kbd> Redo · <kbd>Esc</kbd> Close
+            </div>
+            <div class="swipe-hint">← Swipe client cards for actions</div>
+        </aside>
+
+        <main class="main-panel">
+            <div class="panel-header">
+                <div class="titlewrap">
+                    <button class="mobile-back" onclick="deselectCustomer()">← Back</button>
+                    <h2 id="panelTitle">📊 Analytics Dashboard</h2>
+                    <span class="notif-badge hidden" id="overdueBadge">0</span>
+                </div>
+                <div class="export-buttons">
+                    <button class="export-btn" onclick="printReceipt()" id="btnPrint" style="display:none;">🖨 Receipt</button>
+                    <button class="export-btn" onclick="exportSingle('excel')" id="btnExportSingleXl" style="display:none;">📊 Client</button>
+                    <button class="export-btn primary" onclick="exportAll('excel')">📊 Excel</button>
+                    <button class="export-btn primary" onclick="exportAll('pdf')">📄 PDF</button>
+                    <button class="export-btn primary" onclick="exportAll('word')">📝 Word</button>
+                    <button class="export-btn drive" onclick="uploadToDrive()" id="driveBtn">☁️ Drive</button>
+                </div>
+            </div>
+
+            <!-- ANALYTICS DASHBOARD -->
+            <div class="analytics-dashboard visible" id="analyticsDashboard">
+                <div class="analytics-stats" id="analyticsStats">
+                    <div class="analytics-stat-card"><div class="label">Total Clients</div><div class="value" id="aClients">0</div></div>
+                    <div class="analytics-stat-card"><div class="label">Total Collected</div><div class="value amber" id="aCollected">0</div></div>
+                    <div class="analytics-stat-card"><div class="label">Outstanding</div><div class="value danger" id="aOutstanding">0</div></div>
+                    <div class="analytics-stat-card"><div class="label">Interest Earned</div><div class="value amber" id="aInterest">0</div></div>
+                    <div class="analytics-stat-card"><div class="label">Collection Rate</div><div class="value success" id="aRate">0%</div></div>
+                    <div class="analytics-stat-card"><div class="label">Paid Off</div><div class="value success" id="aPaidOff">0</div></div>
+                </div>
+
+                <!-- Aging Report -->
+                <div class="chart-box" style="padding:12px;">
+                    <div class="chart-title">⏳ Aging Report — Outstanding by Days Overdue</div>
+                    <div class="aging-grid" id="agingGrid">
+                        <div class="aging-item"><div class="label">Current</div><div class="value ok" id="agingCurrent">0</div></div>
+                        <div class="aging-item"><div class="label">1–30 days</div><div class="value warn" id="aging30">0</div></div>
+                        <div class="aging-item"><div class="label">31–60 days</div><div class="value warn" id="aging60">0</div></div>
+                        <div class="aging-item"><div class="label">61–90 days</div><div class="value danger" id="aging90">0</div></div>
+                        <div class="aging-item"><div class="label">90+ days</div><div class="value danger" id="aging90plus">0</div></div>
+                    </div>
+                </div>
+
+                <div class="analytics-charts">
+                    <div class="chart-box">
+                        <div class="chart-title">📈 Monthly Collection Trend <span style="font-weight:400;font-size:8px;color:var(--paper-dim);">(with trend line)</span></div>
+                        <canvas id="monthlyChart" height="160"></canvas>
+                    </div>
+                    <div class="chart-box">
+                        <div class="chart-title">💳 Payment Methods</div>
+                        <canvas id="methodChart" height="160"></canvas>
+                    </div>
+                </div>
+                <div class="analytics-charts">
+                    <div class="chart-box">
+                        <div class="chart-title">📊 Client Status</div>
+                        <canvas id="statusChart" height="160"></canvas>
+                    </div>
+                    <div class="chart-box">
+                        <div class="chart-title">🏆 Top Clients by Outstanding</div>
+                        <canvas id="topClientsChart" height="160"></canvas>
+                    </div>
+                </div>
+                <div class="analytics-insights" id="analyticsInsights">
+                    <div class="insight-tag"><span class="emoji">⛽</span><span class="text">Total Fuel: <strong id="insightFuel">0 L</strong></span></div>
+                    <div class="insight-tag"><span class="emoji">📊</span><span class="text">Avg Installment: <strong id="insightAvgInst">0</strong></span></div>
+                    <div class="insight-tag"><span class="emoji">💰</span><span class="text">Avg Price/L: <strong id="insightAvgPrice">0</strong></span></div>
+                    <div class="insight-tag"><span class="emoji">📦</span><span class="text">Active Clients: <strong id="insightActive">0</strong></span></div>
+                    <div class="insight-tag"><span class="emoji">💹</span><span class="text">Profitability: <strong id="insightProfit">0%</strong></span></div>
+                    <div class="insight-tag"><span class="emoji">📅</span><span class="text">Forecast (next 30d): <strong id="insightForecast">0</strong></span></div>
+                </div>
+            </div>
+
+            <!-- EMPTY STATE -->
+            <div class="empty-state" id="emptyState" style="display:none;">
+                <div class="glyph">⛽</div>
+                <p>Select a client from the ledger to view their installment plan, payment history and balance.</p>
+            </div>
+
+            <!-- CUSTOMER DETAILS -->
+            <div class="customer-details" id="customerDetails">
+                <div class="gauge-row">
+                    <div class="gauge-box">
+                        <svg id="gaugeSvg" width="180" height="110" viewBox="0 0 180 110">
+                            <path d="M 15 100 A 75 75 0 0 1 165 100" fill="none" stroke="#2c363f" stroke-width="14" stroke-linecap="round"/>
+                            <path id="gaugeArc" d="M 15 100 A 75 75 0 0 1 165 100" fill="none" stroke="var(--gauge-low)" stroke-width="14" stroke-linecap="round" stroke-dasharray="235.6" stroke-dashoffset="235.6" style="transition:stroke-dashoffset .6s var(--ease), stroke .6s var(--ease);"/>
+                            <g id="needleGroup" style="transform-origin:90px 100px; transform:rotate(-90deg); transition:transform .6s var(--ease);">
+                                <line x1="90" y1="100" x2="90" y2="35" stroke="var(--paper)" stroke-width="3" stroke-linecap="round"/>
+                                <circle cx="90" cy="100" r="6" fill="var(--paper)"/>
+                            </g>
+                        </svg>
+                        <div class="gauge-num" id="gaugePct">0%</div>
+                        <div class="gauge-label">Paid</div>
+                    </div>
+                    <div class="gauge-side">
+                        <div class="grow"><span>Grand Total</span><b id="gGrand">0 TZS</b></div>
+                        <div class="grow"><span>Paid to date</span><b class="ok" id="gPaid">0 TZS</b></div>
+                        <div class="grow"><span>Remaining balance</span><b class="danger" id="gRemaining">0 TZS</b></div>
+                        <div class="grow"><span>Per installment</span><b id="gPerInstall">0 TZS</b></div>
+                    </div>
+                </div>
+
+                <div class="summary-cards">
+                    <div class="card"><label>Litres</label><div id="dLitres">0</div></div>
+                    <div class="card"><label>Price / Litre</label><div id="dPrice">0</div></div>
+                    <div class="card"><label>Interest</label><div id="dInterestPct">0%</div></div>
+                    <div class="card"><label>Principal</label><div class="high" id="dPrincipal">0</div></div>
+                    <div class="card"><label>Interest Amt</label><div class="high" id="dInterestAmt">0</div></div>
+                    <div class="card"><label>Installments</label><div id="dInstallCount">0</div></div>
+                    <div class="card"><label>Phone</label><div id="dPhone" style="font-size:12px;">—</div></div>
+                    <div class="card"><label>Vehicle</label><div id="dVehicle" style="font-size:12px;">—</div></div>
+                </div>
+
+                <div class="payment-section">
+                    <div class="payment-form">
+                        <div class="section-title"><span class="num">1</span><h4>Record Payment</h4></div>
+                        <label>Amount (TZS)</label>
+                        <input type="number" id="payAmount" placeholder="0" step="100" min="100" />
+                        <label>Date</label>
+                        <input type="date" id="payDate" />
+                        <label>Method</label>
+                        <select id="payMethod">
+                            <option value="Cash">Cash</option>
+                            <option value="Mobile Money">Mobile Money</option>
+                            <option value="Bank Transfer">Bank Transfer</option>
+                            <option value="Cheque">Cheque</option>
+                        </select>
+                        <label>Note</label>
+                        <textarea id="payNote" rows="2" placeholder="e.g. 1st installment"></textarea>
+                        <button onclick="recordPayment()">Record Payment</button>
+                    </div>
+                    <div>
+                        <div class="section-title"><span class="num">2</span><h4>Payment History</h4></div>
+                        <div class="table-wrap">
+                            <table class="data-table">
+                                <thead><tr><th>Date</th><th>Amount</th><th>Method</th><th>Note</th></tr></thead>
+                                <tbody id="payHistoryBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="section-title"><span class="num">3</span><h4>Amortization Schedule</h4></div>
+                    <div class="table-wrap" style="max-height:200px;">
+                        <table class="data-table">
+                            <thead><tr><th>#</th><th>Due Date</th><th>Plan Amount</th><th>Paid This</th><th>Balance After</th><th>Status</th></tr></thead>
+                            <tbody id="scheduleBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        (function() {
+            // ===== STATE =====
+            let customers = [];
+            let selectedId = null;
+            let editingId = null;
+            let sortMode = 0;
+            let filterMode = 'all';
+            let deletedBuffer = null;
+            let storageReady = false;
+
+            // ===== UNDO / REDO =====
+            let history = [];
+            let historyIndex = -1;
+            const MAX_HISTORY = 100;
+
+            function pushHistory(action, data) {
+                // truncate future
+                history = history.slice(0, historyIndex + 1);
+                history.push({ action, data: JSON.parse(JSON.stringify(data)), timestamp: Date.now() });
+                if (history.length > MAX_HISTORY) history.shift();
+                historyIndex = history.length - 1;
+                updateUndoUI();
+            }
+
+            function undo() {
+                if (historyIndex <= 0) { toast('⏮ Nothing to undo', 'info', 1200); return; }
+                historyIndex--;
+                restoreState(history[historyIndex]);
+                toast('↩ Undo: ' + history[historyIndex].action, 'info', 1500);
+            }
+
+            function redo() {
+                if (historyIndex >= history.length - 1) { toast('⏭ Nothing to redo', 'info', 1200); return; }
+                historyIndex++;
+                restoreState(history[historyIndex]);
+                toast('↪ Redo: ' + history[historyIndex].action, 'info', 1500);
+            }
+
+            function restoreState(entry) {
+                if (!entry || !entry.data) return;
+                // restore customers from snapshot
+                customers = entry.data.customers ? JSON.parse(JSON.stringify(entry.data.customers)) : [];
+                selectedId = entry.data.selectedId || null;
+                saveData(true);
+                renderList();
+                if (selectedId && customers.find(c => c.id === selectedId)) selectCustomer(selectedId);
+                else { selectedId = null;
+                    renderAnalytics();
+                    document.getElementById('analyticsDashboard').classList.add('visible');
+                    document.getElementById('analyticsDashboard').style.display = 'flex';
+                    document.getElementById('customerDetails').style.display = 'none';
+                    document.getElementById('emptyState').style.display = 'none';
+                    document.getElementById('panelTitle').textContent = '📊 Analytics Dashboard'; }
+                updateAllStats();
+                updateUndoUI();
+            }
+
+            function updateUndoUI() {
+                // visual feedback via toast
+            }
+
+            function snapshotState() {
+                return { customers: JSON.parse(JSON.stringify(customers)), selectedId: selectedId };
+            }
+
+            // ===== STORAGE =====
+            async function loadData() {
+                try {
+                    const res = await window.storage.get('customers-data', false);
+                    customers = res && res.value ? JSON.parse(res.value) : [];
+                } catch (e) { customers = []; }
+                try {
+                    const sel = await window.storage.get('selected-client', false);
+                    selectedId = sel && sel.value ? sel.value : null;
+                } catch (e) { selectedId = null; }
+                // load history
+                try {
+                    const h = await window.storage.get('history-data', false);
+                    if (h && h.value) { history = JSON.parse(h.value);
+                        historyIndex = history.length - 1; }
+                } catch (e) { history = [];
+                    historyIndex = -1; }
+                storageReady = true;
+            }
+
+            async function saveData(silent) {
+                const dot = document.getElementById('saveDot');
+                const txt = document.getElementById('saveText');
+                if (!silent) { dot.classList.add('busy');
+                    txt.textContent = 'Saving…'; }
+                try {
+                    const ok = await window.storage.set('customers-data', JSON.stringify(customers), false);
+                    if (!ok) throw new Error('write failed');
+                    if (selectedId) await window.storage.set('selected-client', selectedId, false);
+                    else { try { await window.storage.delete('selected-client', false); } catch (e) {} }
+                    // save history
+                    await window.storage.set('history-data', JSON.stringify(history), false);
+                    if (!silent) { dot.classList.remove('busy');
+                        txt.textContent = 'Synced'; }
+                } catch (e) {
+                    if (!silent) { dot.classList.remove('busy');
+                        txt.textContent = 'Save failed'; }
+                    toast('⚠ Could not save — check connection.', 'error');
+                }
+                updateAllStats();
+                if (!selectedId) renderAnalytics();
+            }
+
+            // ===== TOAST =====
+            function toast(msg, type, duration, undoCallback) {
+                type = type || 'info';
+                duration = duration || 2800;
+                const container = document.getElementById('toastContainer');
+                const el = document.createElement('div');
+                el.className = 'toast ' + type;
+                el.innerHTML = msg;
+                if (undoCallback) {
+                    const link = document.createElement('span');
+                    link.className = 'undo-link';
+                    link.textContent = 'UNDO';
+                    link.onclick = function(e) { e.stopPropagation();
+                        undoCallback();
+                        el.remove(); };
+                    el.appendChild(link);
+                }
+                container.appendChild(el);
+                setTimeout(() => { if (el.parentNode) el.remove(); }, duration);
+            }
+
+            // ===== THEME =====
+            function toggleTheme() {
+                const html = document.documentElement;
+                const current = html.getAttribute('data-theme');
+                const next = current === 'dark' ? 'light' : 'dark';
+                html.setAttribute('data-theme', next);
+                document.getElementById('themeToggle').textContent = next === 'dark' ? '🌙' : '☀️';
+                try { window.storage.set('theme', next, false); } catch (e) {}
+            }
+
+            // ===== STATS =====
+            function updateAllStats() {
+                document.getElementById('statClients').textContent = customers.length;
+                const totalOutstanding = customers.reduce((sum, c) => {
+                    const paid = c.payments.reduce((s, p) => s + p.amount, 0);
+                    return sum + Math.max(0, c.grandTotal - paid);
+                }, 0);
+                const totalCollected = customers.reduce((sum, c) => sum + c.payments.reduce((s, p) => s + p.amount, 0), 0);
+                const totalInterest = customers.reduce((sum, c) => sum + c.interestAmt, 0);
+                const paidOff = customers.filter(c => {
+                    const paid = c.payments.reduce((s, p) => s + p.amount, 0);
+                    return c.grandTotal > 0 && paid >= c.grandTotal;
+                }).length;
+                const totalLitres = customers.reduce((sum, c) => sum + c.litres, 0);
+                document.getElementById('statOutstanding').textContent = totalOutstanding.toLocaleString();
+                document.getElementById('statCollected').textContent = totalCollected.toLocaleString();
+                document.getElementById('statPaidOff').textContent = paidOff;
+                document.getElementById('statInterest').textContent = totalInterest.toLocaleString();
+                document.getElementById('statLitres').textContent = totalLitres.toLocaleString();
+                if (!selectedId) renderAnalytics();
+                checkOverdueNotifications();
+            }
+
+            // ===== OVERDUE NOTIFICATIONS =====
+            function checkOverdueNotifications() {
+                const now = new Date();
+                let overdueCount = 0;
+                customers.forEach(c => {
+                    const paid = c.payments.reduce((s, p) => s + p.amount, 0);
+                    if (paid >= c.grandTotal) return;
+                    const schedule = buildSchedule(c);
+                    const nextDue = schedule.find(r => r.status === 'Pending' || r.status === 'Partial');
+                    if (nextDue && nextDue.dueDate < now) overdueCount++;
+                });
+                const badge = document.getElementById('overdueBadge');
+                if (overdueCount > 0) {
+                    badge.textContent = overdueCount;
+                    badge.classList.remove('hidden');
+                    badge.title = overdueCount + ' client(s) have overdue payments';
+                    // show notification toast once per session
+                    if (!window._overdueNotified) {
+                        toast('⏰ ' + overdueCount + ' client(s) have overdue payments!', 'error', 4000);
+                        window._overdueNotified = true;
+                    }
+                } else {
+                    badge.classList.add('hidden');
+                    window._overdueNotified = false;
+                }
+            }
+
+            // ===== LIVE CALC =====
+            function liveCalc() {
+                const litres = parseFloat(document.getElementById('cLitres').value) || 0;
+                const price = parseFloat(document.getElementById('cPrice').value) || 0;
+                const interest = parseFloat(document.getElementById('cInterest').value) || 0;
+                const installments = parseInt(document.getElementById('cInstallments').value) || 1;
+                const principal = litres * price;
+                const interestAmt = principal * (interest / 100);
+                const grandTotal = principal + interestAmt;
+                const perInstall = installments > 0 ? grandTotal / installments : grandTotal;
+                document.getElementById('calcPrincipal').textContent = principal.toLocaleString();
+                document.getElementById('calcInterest').textContent = interestAmt.toLocaleString();
+                document.getElementById('calcGrand').textContent = grandTotal.toLocaleString() + ' TZS';
+                document.getElementById('calcPerInstall').textContent = perInstall.toLocaleString();
+            }
+
+            // ===== FORM =====
+            function toggleAddForm() {
+                const f = document.getElementById('addForm');
+                f.classList.toggle('hidden');
+                if (!f.classList.contains('hidden') && editingId) cancelEdit();
+                if (!f.classList.contains('hidden')) document.getElementById('cName').focus();
+            }
+
+            function resetFormFields() {
+                document.getElementById('cName').value = '';
+                document.getElementById('cLitres').value = '';
+                document.getElementById('cPrice').value = '';
+                document.getElementById('cInterest').value = '0';
+                document.getElementById('cInstallments').value = '3';
+                document.getElementById('cPhone').value = '';
+                document.getElementById('cEmail').value = '';
+                document.getElementById('cAddress').value = '';
+                document.getElementById('cVehicle').value = '';
+                document.getElementById('cTags').value = '';
+                document.getElementById('cNotes').value = '';
+                liveCalc();
+            }
+
+            function cancelEdit() {
+                editingId = null;
+                document.getElementById('editingId').value = '';
+                document.getElementById('formTitle').textContent = 'New Client';
+                document.getElementById('submitBtn').textContent = 'Add Customer';
+                document.getElementById('editBadge').style.display = 'none';
+                document.getElementById('cancelEditBtn').style.display = 'none';
+                resetFormFields();
+                toast('Edit cancelled', 'info');
+            }
+
+            function getFormData() {
+                return {
+                    name: document.getElementById('cName').value.trim(),
+                    litres: parseFloat(document.getElementById('cLitres').value),
+                    price: parseFloat(document.getElementById('cPrice').value),
+                    interest: parseFloat(document.getElementById('cInterest').value) || 0,
+                    installments: parseInt(document.getElementById('cInstallments').value) || 1,
+                    phone: document.getElementById('cPhone').value.trim(),
+                    email: document.getElementById('cEmail').value.trim(),
+                    address: document.getElementById('cAddress').value.trim(),
+                    vehicle: document.getElementById('cVehicle').value.trim(),
+                    tags: document.getElementById('cTags').value.split(',').map(s => s.trim()).filter(Boolean),
+                    notes: document.getElementById('cNotes').value.trim()
+                };
+            }
+
+            function addOrUpdateCustomer() {
+                const data = getFormData();
+                if (!data.name || !data.litres || !data.price || data.installments < 1) {
+                    toast('⚠ Please fill all required fields correctly.', 'error');
+                    return;
+                }
+                const principal = data.litres * data.price;
+                const interestAmt = principal * (data.interest / 100);
+                const grandTotal = principal + interestAmt;
+                const installmentAmt = grandTotal / data.installments;
+
+                if (editingId) {
+                    const idx = customers.findIndex(c => c.id === editingId);
+                    if (idx === -1) return;
+                    const old = customers[idx];
+                    customers[idx] = { ...old, ...data, principal, interestAmt, grandTotal, installmentAmt };
+                    pushHistory('Edit client', snapshotState());
+                    toast('✅ Client updated', 'success');
+                } else {
+                    const newCustomer = {
+                        id: Date.now().toString(),
+                        ...data,
+                        principal,
+                        interestAmt,
+                        grandTotal,
+                        installmentAmt,
+                        createdAt: new Date().toISOString(),
+                        payments: []
+                    };
+                    customers.push(newCustomer);
+                    pushHistory('Add client', snapshotState());
+                    toast('✅ Client added', 'success');
+                    if (window.innerWidth < 900) document.getElementById('addForm').classList.add('hidden');
+                }
+                const lastId = editingId || customers[customers.length - 1]?.id;
+                editingId = null;
+                document.getElementById('editingId').value = '';
+                document.getElementById('formTitle').textContent = 'New Client';
+                document.getElementById('submitBtn').textContent = 'Add Customer';
+                document.getElementById('editBadge').style.display = 'none';
+                document.getElementById('cancelEditBtn').style.display = 'none';
+                resetFormFields();
+                saveData();
+                renderList();
+                if (lastId) selectCustomer(lastId);
+                else renderAnalytics();
+            }
+
+            function editCustomer(id) {
+                const c = customers.find(x => x.id === id);
+                if (!c) return;
+                editingId = id;
+                document.getElementById('editingId').value = id;
+                document.getElementById('cName').value = c.name;
+                document.getElementById('cLitres').value = c.litres;
+                document.getElementById('cPrice').value = c.price;
+                document.getElementById('cInterest').value = c.interest;
+                document.getElementById('cInstallments').value = c.installments;
+                document.getElementById('cPhone').value = c.phone || '';
+                document.getElementById('cEmail').value = c.email || '';
+                document.getElementById('cAddress').value = c.address || '';
+                document.getElementById('cVehicle').value = c.vehicle || '';
+                document.getElementById('cTags').value = (c.tags || []).join(', ');
+                document.getElementById('cNotes').value = c.notes || '';
+                document.getElementById('formTitle').textContent = 'Edit Client';
+                document.getElementById('submitBtn').textContent = 'Update Client';
+                document.getElementById('editBadge').style.display = 'inline-block';
+                document.getElementById('cancelEditBtn').style.display = 'block';
+                document.getElementById('addForm').classList.remove('hidden');
+                liveCalc();
+                if (window.innerWidth < 900) document.getElementById('addForm').scrollIntoView({ behavior: 'smooth' });
+            }
+
+            // ===== BULK IMPORT =====
+            function handleBulkImport(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        let data;
+                        if (file.name.endsWith('.csv')) {
+                            const text = e.target.result;
+                            const lines = text.split('\n').filter(l => l.trim());
+                            const headers = lines[0].split(',').map(h => h.trim());
+                            data = lines.slice(1).map(line => {
+                                const vals = line.split(',').map(v => v.trim());
+                                let obj = {};
+                                headers.forEach((h, i) => obj[h] = vals[i] || '');
+                                return obj;
+                            });
+                        } else {
+                            const wb = XLSX.read(e.target.result, { type: 'array' });
+                            const ws = wb.Sheets[wb.SheetNames[0]];
+                            data = XLSX.utils.sheet_to_json(ws);
+                        }
+                        let added = 0;
+                        data.forEach(row => {
+                            const name = row['Client'] || row['Name'] || row['client'] || '';
+                            const litres = parseFloat(row['Litres'] || row['litres'] || 0);
+                            const price = parseFloat(row['Price'] || row['price'] || row['Price/L'] || 0);
+                            const interest = parseFloat(row['Interest'] || row['interest'] || 0);
+                            const installments = parseInt(row['Installments'] || row['installments'] || 3);
+                            if (!name || !litres || !price) return;
+                            const principal = litres * price;
+                            const interestAmt = principal * (interest / 100);
+                            const grandTotal = principal + interestAmt;
+                            const installmentAmt = grandTotal / installments;
+                            const c = {
+                                id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
+                                name,
+                                litres,
+                                price,
+                                interest,
+                                installments,
+                                principal,
+                                interestAmt,
+                                grandTotal,
+                                installmentAmt,
+                                phone: row['Phone'] || row['phone'] || '',
+                                email: row['Email'] || row['email'] || '',
+                                address: row['Address'] || row['address'] || '',
+                                vehicle: row['Vehicle'] || row['vehicle'] || '',
+                                tags: (row['Tags'] || row['tags'] || '').split(',').map(s => s.trim()).filter(Boolean),
+                                notes: row['Notes'] || row['notes'] || '',
+                                createdAt: new Date().toISOString(),
+                                payments: []
+                            };
+                            customers.push(c);
+                            added++;
+                        });
+                        if (added > 0) {
+                            pushHistory('Bulk import ' + added + ' clients', snapshotState());
+                            saveData();
+                            renderList();
+                            toast('📥 Imported ' + added + ' clients successfully!', 'success');
+                            renderAnalytics();
+                        } else {
+                            toast('⚠ No valid clients found in file.', 'error');
+                        }
+                    } catch (err) {
+                        toast('⚠ Error reading file: ' + err.message, 'error');
+                    }
+                };
+                if (file.name.endsWith('.csv')) reader.readAsText(file);
+                else reader.readAsArrayBuffer(file);
+                event.target.value = '';
+            }
+
+            // ===== LIST =====
+            function renderList() {
+                const container = document.getElementById('clientList');
+                const search = document.getElementById('searchInput').value.toLowerCase();
+                let filtered = customers.filter(c => c.name.toLowerCase().includes(search));
+
+                if (filterMode === 'active') {
+                    filtered = filtered.filter(c => {
+                        const paid = c.payments.reduce((s, p) => s + p.amount, 0);
+                        return paid < c.grandTotal;
+                    });
+                } else if (filterMode === 'paid') {
+                    filtered = filtered.filter(c => {
+                        const paid = c.payments.reduce((s, p) => s + p.amount, 0);
+                        return paid >= c.grandTotal && c.grandTotal > 0;
+                    });
+                } else if (filterMode === 'overdue') {
+                    const now = new Date();
+                    filtered = filtered.filter(c => {
+                        const paid = c.payments.reduce((s, p) => s + p.amount, 0);
+                        if (paid >= c.grandTotal) return false;
+                        const schedule = buildSchedule(c);
+                        const nextDue = schedule.find(r => r.status === 'Pending' || r.status === 'Partial');
+                        return nextDue && nextDue.dueDate < now;
+                    });
+                }
+
+                if (sortMode === 1) filtered.sort((a, b) => a.name.localeCompare(b.name));
+                else if (sortMode === 2) {
+                    filtered.sort((a, b) => {
+                        const ba = b.payments.reduce((s, p) => s + p.amount, 0);
+                        const aa = a.payments.reduce((s, p) => s + p.amount, 0);
+                        return (b.grandTotal - ba) - (a.grandTotal - aa);
+                    });
+                } else filtered.sort((a, b) => parseInt(b.id) - parseInt(a.id));
+
+                document.getElementById('resultCount').textContent = filtered.length;
+
+                if (filtered.length === 0) {
+                    container.innerHTML = '<div class="empty-list">No clients found</div>';
+                    return;
+                }
+                container.innerHTML = filtered.map(c => {
+                    const paid = c.payments.reduce((s, p) => s + p.amount, 0);
+                    const balance = Math.max(0, c.grandTotal - paid);
+                    const isPaidOff = c.grandTotal > 0 && balance === 0;
+                    const isActive = c.id === selectedId;
+                    const overdue = !isPaidOff && (() => {
+                        const sched = buildSchedule(c);
+                        const next = sched.find(r => r.status === 'Pending' || r.status === 'Partial');
+                        return next && next.dueDate < new Date();
+                    })();
+                    return `<div class="client-card ${isActive?'active':''}" onclick="selectCustomer('${c.id}')" style="${overdue?'border-left-color:var(--diesel);':''}">
+                <div class="client-info">
+                  <div class="client-name">${escapeHTML(c.name)} ${overdue?'<span style="color:var(--diesel);font-size:10px;">⚠</span>':''}</div>
+                  <div class="client-balance">Due: <b class="${isPaidOff?'paid-off':''}">${balance.toLocaleString()} TZS</b> · ${c.installments} inst. ${c.vehicle?'· '+escapeHTML(c.vehicle):''}</div>
+                </div>
+                <div class="client-actions">
+                  <button class="icon-btn edit" onclick="event.stopPropagation();editCustomer('${c.id}')" title="Edit">✎</button>
+                  <button class="icon-btn danger" onclick="event.stopPropagation();deleteCustomer('${c.id}')" title="Delete">✕</button>
+                </div>
+              </div>`;
+                }).join('');
+            }
+
+            function escapeHTML(str) {
+                const div = document.createElement('div');
+                div.textContent = str;
+                return div.innerHTML;
+            }
+
+            function setFilter(mode, el) {
+                filterMode = mode;
+                document.querySelectorAll('.filter-chip').forEach(chip => chip.classList.remove('active'));
+                if (el) el.classList.add('active');
+                renderList();
+            }
+
+            function cycleSort() {
+                sortMode = (sortMode + 1) % 3;
+                const labels = ['Newest', 'Name A-Z', 'Balance ↓'];
+                toast('Sort: ' + labels[sortMode], 'info', 1200);
+                renderList();
+            }
+
+            // ===== DELETE =====
+            function deleteCustomer(id) {
+                const c = customers.find(x => x.id === id);
+                if (!c) return;
+                const name = c.name;
+                deletedBuffer = c;
+                customers = customers.filter(x => x.id !== id);
+                if (selectedId === id) deselectCustomer();
+                pushHistory('Delete client: ' + name, snapshotState());
+                saveData();
+                renderList();
+                toast(`🗑 Deleted "${escapeHTML(name)}"`, 'error', 5000, function() {
+                    if (deletedBuffer && !customers.find(x => x.id === deletedBuffer.id)) {
+                        customers.push(deletedBuffer);
+                        customers.sort((a, b) => parseInt(b.id) - parseInt(a.id));
+                        deletedBuffer = null;
+                        pushHistory('Restore client: ' + name, snapshotState());
+                        saveData();
+                        renderList();
+                        toast('♻ Restored', 'success');
+                    }
+                });
+            }
+
+            // ===== SELECT =====
+            function deselectCustomer() {
+                selectedId = null;
+                saveData();
+                document.getElementById('customerDetails').style.display = 'none';
+                document.getElementById('analyticsDashboard').classList.add('visible');
+                document.getElementById('analyticsDashboard').style.display = 'flex';
+                document.getElementById('emptyState').style.display = 'none';
+                document.getElementById('panelTitle').textContent = '📊 Analytics Dashboard';
+                document.getElementById('btnPrint').style.display = 'none';
+                document.getElementById('btnExportSingleXl').style.display = 'none';
+                renderList();
+                renderAnalytics();
+            }
+
+            function buildSchedule(c) {
+                const paidTotal = c.payments.reduce((s, p) => s + p.amount, 0);
+                let cum = 0;
+                const created = new Date(c.createdAt);
+                const rows = [];
+                for (let i = 1; i <= c.installments; i++) {
+                    let due = new Date(created);
+                    due.setDate(created.getDate() + i * 30);
+                    const planAmt = c.installmentAmt;
+                    const cumulativeTarget = planAmt * i;
+                    const installmentPaid = Math.min(planAmt, Math.max(0, paidTotal - cum));
+                    cum += planAmt;
+                    const balanceAfter = Math.max(0, c.grandTotal - cumulativeTarget);
+                    const status = paidTotal >= cumulativeTarget ? 'Paid' : (installmentPaid > 0 ? 'Partial' :
+                    'Pending');
+                    rows.push({
+                        num: i,
+                        dueDate: due,
+                        dueStr: due.toLocaleDateString('en-GB', { day: '2-digit', month: 'short',
+                            year: 'numeric' }),
+                        planAmt,
+                        installmentPaid,
+                        cumulativeTarget,
+                        balanceAfter,
+                        status
+                    });
+                }
+                return rows;
+            }
+
+            function setGauge(pct) {
+                pct = Math.max(0, Math.min(100, pct));
+                const circumference = 235.6;
+                const offset = circumference - (circumference * pct / 100);
+                const arc = document.getElementById('gaugeArc');
+                arc.style.strokeDashoffset = offset;
+                let color = 'var(--gauge-low)';
+                if (pct >= 100) color = 'var(--gauge-ok)';
+                else if (pct >= 60) color = 'var(--gauge-ok)';
+                else if (pct >= 30) color = 'var(--gauge-warn)';
+                arc.style.stroke = color;
+                const angle = -90 + (pct / 100) * 180;
+                document.getElementById('needleGroup').style.transform = `rotate(${angle}deg)`;
+                document.getElementById('gaugePct').textContent = pct + '%';
+            }
+
+            function selectCustomer(id) {
+                selectedId = id;
+                saveData();
+                renderList();
+                const c = customers.find(x => x.id === id);
+                if (!c) return;
+                document.getElementById('emptyState').style.display = 'none';
+                document.getElementById('analyticsDashboard').classList.remove('visible');
+                document.getElementById('analyticsDashboard').style.display = 'none';
+                document.getElementById('customerDetails').style.display = 'flex';
+                document.getElementById('panelTitle').textContent = c.name;
+                document.getElementById('btnPrint').style.display = 'inline-block';
+                document.getElementById('btnExportSingleXl').style.display = 'inline-block';
+
+                const paidTotal = c.payments.reduce((s, p) => s + p.amount, 0);
+                const remaining = Math.max(0, c.grandTotal - paidTotal);
+                const pct = c.grandTotal > 0 ? Math.round((paidTotal / c.grandTotal) * 100) : 0;
+
+                setGauge(pct);
+                document.getElementById('gGrand').textContent = c.grandTotal.toLocaleString() + ' TZS';
+                document.getElementById('gPaid').textContent = paidTotal.toLocaleString() + ' TZS';
+                document.getElementById('gRemaining').textContent = remaining.toLocaleString() + ' TZS';
+                document.getElementById('gPerInstall').textContent = c.installmentAmt.toLocaleString() + ' TZS';
+
+                document.getElementById('dLitres').textContent = c.litres.toLocaleString() + ' L';
+                document.getElementById('dPrice').textContent = c.price.toLocaleString();
+                document.getElementById('dInterestPct').textContent = c.interest + '%';
+                document.getElementById('dPrincipal').textContent = c.principal.toLocaleString();
+                document.getElementById('dInterestAmt').textContent = c.interestAmt.toLocaleString();
+                document.getElementById('dInstallCount').textContent = c.installments;
+                document.getElementById('dPhone').textContent = c.phone || '—';
+                document.getElementById('dVehicle').textContent = c.vehicle || '—';
+
+                const historyBody = document.getElementById('payHistoryBody');
+                if (c.payments.length === 0) {
+                    historyBody.innerHTML =
+                        '<tr><td colspan="4" style="text-align:center;color:var(--paper-dim);font-family:Inter,sans-serif;">No payments yet</td></tr>';
+                } else {
+                    historyBody.innerHTML = c.payments.slice().reverse().map(p =>
+                        `<tr><td>${new Date(p.date).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}</td><td class="amount-pos">${p.amount.toLocaleString()}</td><td>${escapeHTML(p.method||'Cash')}</td><td style="font-family:Inter,sans-serif;">${escapeHTML(p.note||'-')}</td></tr>`
+                    ).join('');
+                }
+
+                const rows = buildSchedule(c);
+                document.getElementById('scheduleBody').innerHTML = rows.map(r => {
+                    const cls = r.status === 'Paid' ? 'status-paid' : (r.status === 'Partial' ?
+                        'status-partial' : 'status-pending');
+                    return `<tr>
+                <td>${r.num}</td>
+                <td>${r.dueStr}</td>
+                <td>${r.planAmt.toLocaleString()}</td>
+                <td>${r.installmentPaid.toLocaleString()}</td>
+                <td>${r.balanceAfter.toLocaleString()}</td>
+                <td class="${cls}">${r.status}</td>
+              </tr>`;
+                }).join('');
+            }
+
+            // ===== PAYMENT =====
+            function recordPayment() {
+                const c = customers.find(x => x.id === selectedId);
+                if (!c) { toast('⚠ No client selected.', 'error'); return; }
+                const amount = parseFloat(document.getElementById('payAmount').value);
+                const date = document.getElementById('payDate').value;
+                const method = document.getElementById('payMethod').value;
+                const note = document.getElementById('payNote').value.trim();
+                if (!amount || amount <= 0) { toast('⚠ Enter a valid payment amount.', 'error'); return; }
+                const paidTotal = c.payments.reduce((s, p) => s + p.amount, 0);
+                const remaining = Math.max(0, c.grandTotal - paidTotal);
+                if (amount > remaining && remaining > 0) {
+                    if (!confirm(`Amount (${amount.toLocaleString()}) exceeds remaining balance (${remaining.toLocaleString()}). Record anyway?`))
+                        return;
+                }
+                c.payments.push({ amount, date, method, note });
+                pushHistory('Record payment for ' + c.name, snapshotState());
+                saveData();
+                selectCustomer(selectedId);
+                document.getElementById('payAmount').value = '';
+                document.getElementById('payNote').value = '';
+                document.getElementById('payDate').valueAsDate = new Date();
+                const newPaid = c.payments.reduce((s, p) => s + p.amount, 0);
+                const newRemaining = Math.max(0, c.grandTotal - newPaid);
+                if (newRemaining === 0 && c.grandTotal > 0) toast('🎉 Fully paid off!', 'success', 4000);
+                else toast('✅ Payment recorded', 'success');
+                renderList();
+            }
+
+            // ===== ANALYTICS ENGINE =====
+            function getAnalyticsData() {
+                const totalClients = customers.length;
+                let totalCollected = 0,
+                    totalOutstanding = 0,
+                    totalInterest = 0,
+                    totalLitres = 0,
+                    paidOffCount = 0,
+                    activeCount = 0;
+                const paymentsByMonth = {};
+                const methodCounts = {};
+                const clientBalances = [];
+                let totalPrincipal = 0,
+                    totalInterestEarned = 0;
+                let totalCollectedInterest = 0;
+
+                customers.forEach(c => {
+                    const paid = c.payments.reduce((s, p) => s + p.amount, 0);
+                    const bal = Math.max(0, c.grandTotal - paid);
+                    totalCollected += paid;
+                    totalOutstanding += bal;
+                    totalInterest += c.interestAmt;
+                    totalLitres += c.litres;
+                    totalPrincipal += c.principal;
+                    totalInterestEarned += c.interestAmt;
+                    // interest collected = portion of payments attributed to interest
+                    const paidRatio = c.grandTotal > 0 ? paid / c.grandTotal : 0;
+                    totalCollectedInterest += c.interestAmt * paidRatio;
+
+                    if (c.grandTotal > 0 && bal === 0) paidOffCount++;
+                    else if (c.grandTotal > 0) activeCount++;
+
+                    clientBalances.push({ name: c.name, balance: bal, id: c.id });
+
+                    c.payments.forEach(p => {
+                        const d = new Date(p.date);
+                        const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+                        paymentsByMonth[key] = (paymentsByMonth[key] || 0) + p.amount;
+                        const m = p.method || 'Cash';
+                        methodCounts[m] = (methodCounts[m] || 0) + p.amount;
+                    });
+                });
+
+                const months = Object.keys(paymentsByMonth).sort();
+                const monthLabels = months.map(m => {
+                    const [y, mo] = m.split('-');
+                    return new Date(parseInt(y), parseInt(mo) - 1).toLocaleString('en', { month: 'short' }) + "'" + y
+                        .slice(2);
+                });
+                const monthData = months.map(m => paymentsByMonth[m]);
+
+                const totalRevenue = totalCollected + totalOutstanding;
+                const collectionRate = totalRevenue > 0 ? Math.round((totalCollected / totalRevenue) * 100) : 0;
+
+                const topClients = clientBalances
+                    .filter(cb => cb.balance > 0)
+                    .sort((a, b) => b.balance - a.balance)
+                    .slice(0, 5);
+
+                const methodLabels = Object.keys(methodCounts);
+                const methodData = methodLabels.map(k => methodCounts[k]);
+
+                // Aging
+                const now = new Date();
+                let agingCurrent = 0,
+                    aging30 = 0,
+                    aging60 = 0,
+                    aging90 = 0,
+                    aging90plus = 0;
+                customers.forEach(c => {
+                    const paid = c.payments.reduce((s, p) => s + p.amount, 0);
+                    if (paid >= c.grandTotal) return;
+                    const schedule = buildSchedule(c);
+                    const nextDue = schedule.find(r => r.status === 'Pending' || r.status === 'Partial');
+                    if (!nextDue) return;
+                    const days = Math.max(0, Math.floor((now - nextDue.dueDate) / (1000 * 60 * 60 * 24)));
+                    const bal = Math.max(0, c.grandTotal - paid);
+                    if (days === 0) agingCurrent += bal;
+                    else if (days <= 30) aging30 += bal;
+                    else if (days <= 60) aging60 += bal;
+                    else if (days <= 90) aging90 += bal;
+                    else aging90plus += bal;
+                });
+
+                // Forecast: sum of next 30 days due
+                let forecast30 = 0;
+                customers.forEach(c => {
+                    const paid = c.payments.reduce((s, p) => s + p.amount, 0);
+                    if (paid >= c.grandTotal) return;
+                    const schedule = buildSchedule(c);
+                    const nextDue = schedule.find(r => r.status === 'Pending' || r.status === 'Partial');
+                    if (nextDue) {
+                        const days = Math.floor((nextDue.dueDate - now) / (1000 * 60 * 60 * 24));
+                        if (days >= 0 && days <= 30) forecast30 += nextDue.planAmt - nextDue.installmentPaid;
+                    }
+                });
+
+                // Profitability: collected interest / total interest
+                const profitability = totalInterestEarned > 0 ? Math.round((totalCollectedInterest / totalInterestEarned) *
+                    100) : 0;
+
+                return {
+                    totalClients,
+                    totalCollected,
+                    totalOutstanding,
+                    totalInterest,
+                    totalLitres,
+                    paidOffCount,
+                    activeCount,
+                    collectionRate,
+                    monthLabels,
+                    monthData,
+                    methodLabels,
+                    methodData,
+                    topClients,
+                    clientBalances,
+                    agingCurrent,
+                    aging30,
+                    aging60,
+                    aging90,
+                    aging90plus,
+                    forecast30,
+                    profitability
+                };
+            }
+
+            function renderAnalytics() {
+                const data = getAnalyticsData();
+                const a = document.getElementById('analyticsDashboard');
+                if (!a) return;
+                a.classList.add('visible');
+
+                document.getElementById('aClients').textContent = data.totalClients;
+                document.getElementById('aCollected').textContent = data.totalCollected.toLocaleString();
+                document.getElementById('aOutstanding').textContent = data.totalOutstanding.toLocaleString();
+                document.getElementById('aInterest').textContent = data.totalInterest.toLocaleString();
+                document.getElementById('aRate').textContent = data.collectionRate + '%';
+                document.getElementById('aPaidOff').textContent = data.paidOffCount;
+
+                document.getElementById('insightFuel').textContent = data.totalLitres.toLocaleString() + ' L';
+                const avgInst = customers.length > 0 ? Math.round(customers.reduce((s, c) => s + c.installmentAmt, 0) /
+                    customers.length) : 0;
+                document.getElementById('insightAvgInst').textContent = avgInst.toLocaleString() + ' TZS';
+                const avgPrice = customers.length > 0 ? Math.round(customers.reduce((s, c) => s + c.price, 0) / customers
+                    .length) : 0;
+                document.getElementById('insightAvgPrice').textContent = avgPrice.toLocaleString() + ' TZS/L';
+                document.getElementById('insightActive').textContent = data.activeCount;
+                document.getElementById('insightProfit').textContent = data.profitability + '%';
+                document.getElementById('insightForecast').textContent = data.forecast30.toLocaleString() + ' TZS';
+
+                // Aging
+                document.getElementById('agingCurrent').textContent = data.agingCurrent.toLocaleString();
+                document.getElementById('aging30').textContent = data.aging30.toLocaleString();
+                document.getElementById('aging60').textContent = data.aging60.toLocaleString();
+                document.getElementById('aging90').textContent = data.aging90.toLocaleString();
+                document.getElementById('aging90plus').textContent = data.aging90plus.toLocaleString();
+
+                drawMonthlyChart(data.monthLabels, data.monthData);
+                drawMethodChart(data.methodLabels, data.methodData);
+                drawStatusChart(data.paidOffCount, data.activeCount, data.totalClients - data.paidOffCount - data
+                .activeCount);
+                drawTopClientsChart(data.topClients);
+            }
+
+            // ===== CHARTS =====
+            function getCtx(id) {
+                const canvas = document.getElementById(id);
+                if (!canvas) return null;
+                const rect = canvas.parentElement.getBoundingClientRect();
+                const w = Math.min(rect.width - 28, 400);
+                const ratio = w / 400;
+                const h = Math.max(110, 160 * ratio);
+                canvas.width = w * 2;
+                canvas.height = h * 2;
+                canvas.style.width = w + 'px';
+                canvas.style.height = h + 'px';
+                const ctx = canvas.getContext('2d');
+                ctx.scale(2, 2);
+                return { ctx, w, h };
+            }
+
+            function drawMonthlyChart(labels, data) {
+                const res = getCtx('monthlyChart');
+                if (!res) return;
+                const { ctx, w, h } = res;
+                const pad = { top: 16, bottom: 22, left: 26, right: 8 };
+                const chartW = w - pad.left - pad.right;
+                const chartH = h - pad.top - pad.bottom;
+                const maxVal = Math.max(...data, 1);
+
+                ctx.clearRect(0, 0, w, h);
+
+                const barW = Math.min(chartW / Math.max(data.length, 1) * 0.5, 28);
+                const gap = chartW / Math.max(data.length, 1);
+                const colors = ['#4a8db7', '#7fae62', '#d9a441', '#c1502e', '#8b6b9e', '#4a9e9e', '#c97a7a', '#e6a13a'];
+
+                // bars
+                data.forEach((val, i) => {
+                    const x = pad.left + i * gap + (gap - barW) / 2;
+                    const barH = (val / maxVal) * chartH;
+                    const y = pad.top + chartH - barH;
+                    ctx.fillStyle = colors[i % colors.length];
+                    ctx.beginPath();
+                    ctx.roundRect ? ctx.roundRect(x, y, barW, barH, 2) : ctx.rect(x, y, barW, barH);
+                    ctx.fill();
+                    if (val > 0) {
+                        ctx.fillStyle = '#b7b0a0';
+                        ctx.font = '7px monospace';
+                        ctx.textAlign = 'center';
+                        ctx.fillText(val.toLocaleString(), x + barW / 2, y - 2);
+                    }
+                });
+
+                // Trend line (simple moving average)
+                if (data.length >= 2) {
+                    const points = data.map((v, i) => ({
+                        x: pad.left + i * gap + gap / 2,
+                        y: pad.top + chartH - (v / maxVal) * chartH
+                    }));
+                    ctx.beginPath();
+                    ctx.strokeStyle = 'rgba(230,161,58,0.5)';
+                    ctx.lineWidth = 1.5;
+                    ctx.setLineDash([3, 3]);
+                    points.forEach((p, i) => {
+                        if (i === 0) ctx.moveTo(p.x, p.y);
+                        else ctx.lineTo(p.x, p.y);
+                    });
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    // moving average overlay (3-period)
+                    if (data.length >= 3) {
+                        const ma = [];
+                        for (let i = 0; i < data.length; i++) {
+                            if (i < 2) ma.push(null);
+                            else ma.push((data[i - 2] + data[i - 1] + data[i]) / 3);
+                        }
+                        ctx.beginPath();
+                        ctx.strokeStyle = 'rgba(127,174,98,0.7)';
+                        ctx.lineWidth = 2;
+                        ma.forEach((v, i) => {
+                            if (v === null) return;
+                            const x = pad.left + i * gap + gap / 2;
+                            const y = pad.top + chartH - (v / maxVal) * chartH;
+                            if (i === 2 || ma[i - 1] === null) ctx.moveTo(x, y);
+                            else ctx.lineTo(x, y);
+                        });
+                        ctx.stroke();
+                    }
+                }
+
+                // labels
+                ctx.fillStyle = '#5a6670';
+                ctx.font = '7px sans-serif';
+                ctx.textAlign = 'center';
+                labels.forEach((l, i) => {
+                    const x = pad.left + i * gap + gap / 2;
+                    ctx.fillText(l, x, h - 4);
+                });
+                if (maxVal > 0) {
+                    ctx.fillStyle = '#5a6670';
+                    ctx.font = '6px sans-serif';
+                    ctx.textAlign = 'right';
+                    ctx.fillText(maxVal.toLocaleString(), pad.left - 4, pad.top + 6);
+                    ctx.fillText('0', pad.left - 4, h - pad.bottom + 4);
+                }
+                // legend
+                ctx.fillStyle = '#5a6670';
+                ctx.font = '6px sans-serif';
+                ctx.textAlign = 'left';
+                ctx.fillText('— bars: monthly  — line: 3-period MA', pad.left, h - 2);
+            }
+
+            function drawMethodChart(labels, data) {
+                const res = getCtx('methodChart');
+                if (!res) return;
+                const { ctx, w, h } = res;
+                const total = data.reduce((a, b) => a + b, 0) || 1;
+                const colors = ['#4a8db7', '#7fae62', '#d9a441', '#c1502e', '#8b6b9e', '#4a9e9e'];
+                const cx = w / 2,
+                    cy = h / 2 + 4,
+                    radius = Math.min(w, h) / 2 - 20;
+
+                ctx.clearRect(0, 0, w, h);
+
+                if (total === 0 || labels.length === 0) {
+                    ctx.fillStyle = '#5a6670';
+                    ctx.font = '10px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('No payment data', cx, cy + 4);
+                    return;
+                }
+
+                let start = -Math.PI / 2;
+                const sliceRadius = radius * 0.6;
+                labels.forEach((label, i) => {
+                    const val = data[i] || 0;
+                    const angle = (val / total) * 2 * Math.PI;
+                    const end = start + angle;
+                    const color = colors[i % colors.length];
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, radius, start, end);
+                    ctx.arc(cx, cy, sliceRadius, end, start, true);
+                    ctx.closePath();
+                    ctx.fillStyle = color;
+                    ctx.fill();
+                    if (val > 0) {
+                        const mid = start + angle / 2;
+                        const lx = cx + Math.cos(mid) * (radius + 8);
+                        const ly = cy + Math.sin(mid) * (radius + 8);
+                        ctx.fillStyle = '#b7b0a0';
+                        ctx.font = '7px sans-serif';
+                        ctx.textAlign = 'center';
+                        ctx.fillText(label.length > 10 ? label.slice(0, 8) + '…' : label, lx, ly + 3);
+                        ctx.fillStyle = '#5a6670';
+                        ctx.font = '6px monospace';
+                        ctx.fillText(Math.round(val / total * 100) + '%', lx, ly + 12);
+                    }
+                    start = end;
+                });
+                ctx.fillStyle = '#ece7da';
+                ctx.font = 'bold 10px monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText(total.toLocaleString(), cx, cy + 4);
+                ctx.fillStyle = '#5a6670';
+                ctx.font = '6px sans-serif';
+                ctx.fillText('TZS', cx, cy + 13);
+            }
+
+            function drawStatusChart(paidOff, active, inactive) {
+                const res = getCtx('statusChart');
+                if (!res) return;
+                const { ctx, w, h } = res;
+                const total = paidOff + active + inactive || 1;
+                const colors = ['#7fae62', '#d9a441', '#5a6670'];
+                const labels = ['Paid Off', 'Active', 'Inactive'];
+                const data = [paidOff, active, inactive];
+                const cx = w / 2,
+                    cy = h / 2 + 4,
+                    radius = Math.min(w, h) / 2 - 20;
+
+                ctx.clearRect(0, 0, w, h);
+
+                let start = -Math.PI / 2;
+                const sliceRadius = radius * 0.5;
+                data.forEach((val, i) => {
+                    const angle = (val / total) * 2 * Math.PI;
+                    const end = start + angle;
+                    const color = colors[i % colors.length];
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, radius, start, end);
+                    ctx.arc(cx, cy, sliceRadius, end, start, true);
+                    ctx.closePath();
+                    ctx.fillStyle = color;
+                    ctx.fill();
+                    if (val > 0 && angle > 0.08) {
+                        const mid = start + angle / 2;
+                        const lx = cx + Math.cos(mid) * (radius + 10);
+                        const ly = cy + Math.sin(mid) * (radius + 10);
+                        ctx.fillStyle = '#b7b0a0';
+                        ctx.font = '7px sans-serif';
+                        ctx.textAlign = 'center';
+                        ctx.fillText(labels[i], lx, ly + 3);
+                        ctx.fillStyle = '#5a6670';
+                        ctx.font = '6px monospace';
+                        ctx.fillText(val, lx, ly + 12);
+                    }
+                    start = end;
+                });
+                ctx.fillStyle = '#ece7da';
+                ctx.font = 'bold 10px monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText(total, cx, cy + 4);
+                ctx.fillStyle = '#5a6670';
+                ctx.font = '6px sans-serif';
+                ctx.fillText('clients', cx, cy + 13);
+            }
+
+            function drawTopClientsChart(clients) {
+                const res = getCtx('topClientsChart');
+                if (!res) return;
+                const { ctx, w, h } = res;
+                const pad = { top: 10, bottom: 14, left: 50, right: 6 };
+                const chartW = w - pad.left - pad.right;
+                const chartH = h - pad.top - pad.bottom;
+                const maxVal = Math.max(...clients.map(c => c.balance), 1);
+
+                ctx.clearRect(0, 0, w, h);
+
+                if (clients.length === 0) {
+                    ctx.fillStyle = '#5a6670';
+                    ctx.font = '10px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('No outstanding balances', w / 2, h / 2 + 4);
+                    return;
+                }
+
+                const barH = Math.min(chartH / clients.length * 0.6, 18);
+                const gap = chartH / clients.length;
+                const colors = ['#d9a441', '#c97a7a', '#4a8db7', '#7fae62', '#8b6b9e'];
+
+                clients.forEach((c, i) => {
+                    const x = pad.left;
+                    const y = pad.top + i * gap + (gap - barH) / 2;
+                    const barW = (c.balance / maxVal) * chartW;
+                    const color = colors[i % colors.length];
+                    ctx.fillStyle = color;
+                    ctx.beginPath();
+                    ctx.roundRect ? ctx.roundRect(x, y, barW, barH, 2) : ctx.rect(x, y, barW, barH);
+                    ctx.fill();
+                    ctx.fillStyle = '#b7b0a0';
+                    ctx.font = '7px sans-serif';
+                    ctx.textAlign = 'right';
+                    const name = c.name.length > 12 ? c.name.slice(0, 12) + '…' : c.name;
+                    ctx.fillText(name, x - 3, y + barH / 2 + 3);
+                    if (barW > 30) {
+                        ctx.fillStyle = '#12171c';
+                        ctx.font = '6px monospace';
+                        ctx.textAlign = 'right';
+                        ctx.fillText(c.balance.toLocaleString(), x + barW - 3, y + barH / 2 + 3);
+                    } else {
+                        ctx.fillStyle = '#5a6670';
+                        ctx.font = '6px monospace';
+                        ctx.textAlign = 'left';
+                        ctx.fillText(c.balance.toLocaleString(), x + barW + 3, y + barH / 2 + 3);
+                    }
+                });
+            }
+
+            // ===== EXPORT =====
+            function summaryRow(c) {
+                const paid = c.payments.reduce((s, p) => s + p.amount, 0);
+                const balance = Math.max(0, c.grandTotal - paid);
+                return {
+                    'Client': c.name,
+                    'Phone': c.phone || '',
+                    'Email': c.email || '',
+                    'Vehicle': c.vehicle || '',
+                    'Tags': (c.tags || []).join(', '),
+                    'Litres': c.litres,
+                    'Price/L (TZS)': c.price,
+                    'Principal (TZS)': Math.round(c.principal),
+                    'Interest %': c.interest,
+                    'Interest Amount (TZS)': Math.round(c.interestAmt),
+                    'Grand Total (TZS)': Math.round(c.grandTotal),
+                    'Installments': c.installments,
+                    'Per Installment (TZS)': Math.round(c.installmentAmt),
+                    'Paid (TZS)': Math.round(paid),
+                    'Balance (TZS)': Math.round(balance),
+                    'Status': balance === 0 && c.grandTotal > 0 ? 'Paid Off' : 'Active'
+                };
+            }
+
+            function installmentRowsFor(c) {
+                return buildSchedule(c).map(r => ({
+                    'Client': c.name,
+                    'Installment #': r.num,
+                    'Due Date': r.dueStr,
+                    'Plan Amount (TZS)': Math.round(r.planAmt),
+                    'Paid This Installment (TZS)': Math.round(r.installmentPaid),
+                    'Balance After (TZS)': Math.round(r.balanceAfter),
+                    'Status': r.status
+                }));
+            }
+
+            function getExportData(list) { return list.map(summaryRow); }
+
+            function getInstallmentData(list) {
+                let all = [];
+                list.forEach(c => { all = all.concat(installmentRowsFor(c)); });
+                return all;
+            }
+
+            function exportAll(type) {
+                if (customers.length === 0) { toast('⚠ No clients to export.', 'error'); return; }
+                performExport(type, customers, 'Fuel_Installment_Full_Report');
+            }
+
+            function exportSingle(type) {
+                const c = customers.find(x => x.id === selectedId);
+                if (!c) { toast('⚠ No client selected.', 'error'); return; }
+                performExport(type, [c], 'Client_Report_' + c.name.replace(/\s+/g, '_'));
+            }
+
+            function performExport(type, list, filename) {
+                const summary = getExportData(list);
+                const installments = getInstallmentData(list);
+
+                if (type === 'excel') {
+                    const wb = XLSX.utils.book_new();
+                    const wsSummary = XLSX.utils.json_to_sheet(summary);
+                    XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary');
+                    const wsInstall = XLSX.utils.json_to_sheet(installments);
+                    XLSX.utils.book_append_sheet(wb, wsInstall, 'Installment Schedule');
+                    XLSX.writeFile(wb, filename + '.xlsx');
+                    toast('📊 Excel exported', 'success');
+
+                } else if (type === 'pdf') {
+                    const { jsPDF } = window.jspdf;
+                    const doc = new jsPDF('landscape');
+                    doc.setFontSize(16);
+                    doc.text('Fuel Installment Report', 15, 18);
+                    doc.setFontSize(9);
+                    doc.setTextColor(120);
+                    doc.text('Generated ' + new Date().toLocaleString(), 15, 24);
+                    doc.setTextColor(0);
+
+                    const head = [
+                        ['Client', 'Phone', 'Email', 'Vehicle', 'Tags', 'Litres', 'Price/L', 'Principal',
+                            'Interest%', 'Interest', 'Grand Total', 'Inst.', 'Per Inst.', 'Paid', 'Balance',
+                            'Status'
+                        ]
+                    ];
+                    const body = summary.map(r => [r['Client'], r['Phone'], r['Email'], r['Vehicle'], r['Tags'],
+                        r['Litres'], r['Price/L (TZS)'], r['Principal (TZS)'], r['Interest %'],
+                        r['Interest Amount (TZS)'], r['Grand Total (TZS)'], r['Installments'],
+                        r['Per Installment (TZS)'], r['Paid (TZS)'], r['Balance (TZS)'], r['Status']
+                    ]);
+                    doc.autoTable({ head, body, startY: 30, theme: 'grid', styles: { fontSize: 6.5 },
+                        headStyles: { fillColor: [26, 33, 41] } });
+
+                    let y = doc.lastAutoTable.finalY + 10;
+                    list.forEach(c => {
+                        if (y > 170) { doc.addPage();
+                            y = 20; }
+                        doc.setFontSize(11);
+                        doc.text('Schedule — ' + c.name, 15, y);
+                        y += 4;
+                        const rows = installmentRowsFor(c);
+                        const h2 = [
+                            ['#', 'Due Date', 'Plan Amount', 'Paid This Inst.', 'Balance After', 'Status']
+                        ];
+                        const b2 = rows.map(r => [r['Installment #'], r['Due Date'], r['Plan Amount (TZS)'],
+                            r['Paid This Installment (TZS)'], r['Balance After (TZS)'], r['Status']
+                        ]);
+                        doc.autoTable({ head: h2, body: b2, startY: y, theme: 'striped', styles: { fontSize: 7 },
+                            headStyles: { fillColor: [198, 138, 46] }, margin: { left: 15, right: 15 } });
+                        y = doc.lastAutoTable.finalY + 10;
+                    });
+                    doc.save(filename + '.pdf');
+                    toast('📄 PDF exported', 'success');
+
+                } else if (type === 'word') {
+                    function tbl(rows) {
+                        if (rows.length === 0) return '<p><em>No data</em></p>';
+                        return `<table border="1" cellpadding="4" style="border-collapse:collapse;width:100%;font-family:Arial;font-size:10px;margin-bottom:14px;">
+                  <thead><tr style="background:#e6a13a;">${Object.keys(rows[0]).map(k=>`<th>${k}</th>`).join('')}</tr></thead>
+                  <tbody>${rows.map(r=>`<tr>${Object.values(r).map(v=>`<td>${v}</td>`).join('')}</tr>`).join('')}</tbody>
+                </table>`;
+                    }
+                    let body = `<h2>Fuel Installment Report</h2><p>Generated: ${new Date().toLocaleString()}</p>`;
+                    body += `<h3>Client Summary</h3>` + tbl(summary);
+                    list.forEach(c => {
+                        body += `<h3>Installment Schedule — ${c.name}</h3>` + tbl(installmentRowsFor(c));
+                    });
+                    const html =
+                        `<html><head><meta charset="UTF-8"><style>body{font-family:Arial;padding:20px;}</style></head><body>${body}</body></html>`;
+                    const blob = new Blob([html], { type: 'application/msword' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename + '.doc';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    toast('📝 Word exported', 'success');
+                }
+            }
+
+            // ===== GOOGLE DRIVE UPLOAD =====
+            let driveToken = null;
+            let driveClient = null;
+
+            function uploadToDrive() {
+                if (!customers.length) { toast('⚠ No data to upload.', 'error'); return; }
+                // Generate a report file (Excel)
+                const summary = getExportData(customers);
+                const installments = getInstallmentData(customers);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summary), 'Summary');
+                XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(installments), 'Installment Schedule');
+                const data = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+
+                // Use Google Drive API via OAuth
+                if (typeof google === 'undefined') {
+                    toast('⚠ Google API not loaded. Please refresh and try again.', 'error');
+                    return;
+                }
+
+                const tokenClient = google.accounts.oauth2.initTokenClient({
+                    client_id: 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com',
+                    scope: 'https://www.googleapis.com/auth/drive.file',
+                    callback: (resp) => {
+                        if (resp.error) { toast('⚠ Drive auth error: ' + resp.error, 'error'); return; }
+                        driveToken = resp.access_token;
+                        uploadFileToDrive(data, 'Fuel_Report_' + new Date().toISOString().slice(0, 10) + '.xlsx',
+                            resp.access_token);
+                    }
+                });
+                tokenClient.requestAccessToken();
+            }
+
+            function uploadFileToDrive(data, filename, token) {
+                const metadata = {
+                    name: filename,
+                    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                };
+                const form = new FormData();
+                form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+                form.append('file', new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+
+                fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + token },
+                    body: form
+                }).then(res => res.json()).then(json => {
+                    if (json.id) {
+                        toast('☁️ Uploaded to Google Drive! File ID: ' + json.id.slice(0, 12) + '…', 'success');
+                    } else {
+                        toast('⚠ Upload failed: ' + (json.error?.message || 'unknown error'), 'error');
+                    }
+                }).catch(err => {
+                    toast('⚠ Upload error: ' + err.message, 'error');
+                });
+            }
+
+            // ===== PRINT RECEIPT =====
+            function printReceipt() {
+                const c = customers.find(x => x.id === selectedId);
+                if (!c) { toast('⚠ No client selected.', 'error'); return; }
+                const paidTotal = c.payments.reduce((s, p) => s + p.amount, 0);
+                const remaining = Math.max(0, c.grandTotal - paidTotal);
+                const rows = buildSchedule(c);
+                const win = window.open('', '_blank', 'width=760,height=640');
+                win.document.write(`
+              <html><head><title>Receipt - ${c.name}</title>
+              <style>
+                body{font-family:Arial,sans-serif;padding:30px;color:#12171c;background:#fff;}
+                h2{margin-bottom:5px;color:#1a2129;}
+                table{width:100%;border-collapse:collapse;margin-top:14px;font-size:12px;}
+                th,td{padding:7px 9px;border:1px solid #ddd;text-align:left;}
+                th{background:#f2ede1;}
+                .total{font-weight:700;font-size:14px;}
+                .footer{margin-top:20px;font-size:10px;color:#999;text-align:center;}
+                .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 16px;font-size:12px;margin:8px 0;}
+                @media print{body{padding:20px;}}
+              </style></head>
+              <body>
+                <h2>⛽ Fuel Installment Receipt</h2>
+                <p><strong>Client:</strong> ${escapeHTML(c.name)} | <strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
+                <div class="info-grid">
+                  <span><strong>Phone:</strong> ${c.phone||'—'}</span>
+                  <span><strong>Vehicle:</strong> ${c.vehicle||'—'}</span>
+                  <span><strong>Email:</strong> ${c.email||'—'}</span>
+                  <span><strong>Tags:</strong> ${(c.tags||[]).join(', ')||'—'}</span>
+                </div>
+                <p><strong>Fuel:</strong> ${c.litres} L × ${c.price.toLocaleString()} TZS/L | <strong>Interest:</strong> ${c.interest}% | <strong>Installments:</strong> ${c.installments}</p>
+                <table><thead><tr><th>Description</th><th>Amount (TZS)</th></tr></thead>
+                <tbody>
+                  <tr><td>Principal</td><td>${c.principal.toLocaleString()}</td></tr>
+                  <tr><td>Interest</td><td>${c.interestAmt.toLocaleString()}</td></tr>
+                  <tr class="total"><td>Grand Total</td><td>${c.grandTotal.toLocaleString()}</td></tr>
+                  <tr><td>Total Paid</td><td style="color:#38a169;">${paidTotal.toLocaleString()}</td></tr>
+                  <tr><td>Remaining Balance</td><td style="color:#c1502e;">${remaining.toLocaleString()}</td></tr>
+                </tbody></table>
+                <h3>Installment Schedule</h3>
+                <table><thead><tr><th>#</th><th>Due Date</th><th>Plan Amount</th><th>Paid</th><th>Balance After</th><th>Status</th></tr></thead>
+                <tbody>${rows.map(r=>`<tr><td>${r.num}</td><td>${r.dueStr}</td><td>${r.planAmt.toLocaleString()}</td><td>${r.installmentPaid.toLocaleString()}</td><td>${r.balanceAfter.toLocaleString()}</td><td>${r.status}</td></tr>`).join('')}</tbody></table>
+                <h3>Payment History</h3>
+                <table><thead><tr><th>Date</th><th>Amount</th><th>Method</th><th>Note</th></tr></thead>
+                <tbody>${c.payments.length===0?'<tr><td colspan="4">No payments</td></tr>':c.payments.map(p=>`<tr><td>${new Date(p.date).toLocaleDateString()}</td><td>${p.amount.toLocaleString()}</td><td>${p.method||'Cash'}</td><td>${p.note||'-'}</td></tr>`).join('')}</tbody></table>
+                <div class="footer">Generated by Manifold Ledger · ${new Date().toISOString()}</div>
+              </body></html>
+            `);
+                win.document.close();
+                setTimeout(() => win.print(), 500);
+                toast('🖨 Receipt ready', 'success');
+            }
+
+            // ===== KEYBOARD SHORTCUTS =====
+            document.addEventListener('keydown', function(e) {
+                // Ctrl+N: new client
+                if (e.ctrlKey && e.key === 'n') { e.preventDefault();
+                    toggleAddForm(); if (!document.getElementById('addForm').classList.contains('hidden')) document
+                        .getElementById('cName').focus(); }
+                // Ctrl+Z: undo
+                if (e.ctrlKey && e.key === 'z') { e.preventDefault();
+                    undo(); }
+                // Ctrl+Y: redo
+                if (e.ctrlKey && e.key === 'y') { e.preventDefault();
+                    redo(); }
+                // Escape: close form or deselect
+                if (e.key === 'Escape') {
+                    if (editingId) cancelEdit();
+                    else if (selectedId && window.innerWidth < 900) deselectCustomer();
+                    else if (!document.getElementById('addForm').classList.contains('hidden')) document.getElementById(
+                        'addForm').classList.add('hidden');
+                }
+            });
+
+            // ===== ADD TOGGLE =====
+            document.getElementById('addToggle').addEventListener('click', toggleAddForm);
+
+            // ===== RESPONSIVE CHART REDRAW =====
+            let resizeTimer = null;
+            window.addEventListener('resize', function() {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(function() {
+                    const a = document.getElementById('analyticsDashboard');
+                    if (a && a.classList.contains('visible')) renderAnalytics();
+                }, 200);
+            });
+
+            // ===== THEME =====
+            document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+            // load saved theme
+            (async function loadTheme() {
+                try {
+                    const t = await window.storage.get('theme', false);
+                    if (t && t.value) {
+                        document.documentElement.setAttribute('data-theme', t.value);
+                        document.getElementById('themeToggle').textContent = t.value === 'dark' ? '🌙' : '☀️';
+                    }
+                } catch (e) {}
+            })();
+
+            // ===== INIT =====
+            async function boot() {
+                await loadData();
+                document.getElementById('payDate').valueAsDate = new Date();
+                liveCalc();
+                updateAllStats();
+                renderList();
+                if (selectedId && customers.find(c => c.id === selectedId)) {
+                    selectCustomer(selectedId);
+                } else {
+                    selectedId = null;
+                    document.getElementById('analyticsDashboard').classList.add('visible');
+                    document.getElementById('analyticsDashboard').style.display = 'flex';
+                    document.getElementById('customerDetails').style.display = 'none';
+                    document.getElementById('emptyState').style.display = 'none';
+                    document.getElementById('panelTitle').textContent = '📊 Analytics Dashboard';
+                    renderAnalytics();
+                }
+                document.getElementById('loadingScreen').style.display = 'none';
+                // Push initial state to history
+                if (history.length === 0) {
+                    pushHistory('Initial state', snapshotState());
+                }
+                // Check overdue on load
+                setTimeout(checkOverdueNotifications, 1000);
+            }
+
+            // Expose globals
+            window.toggleAddForm = toggleAddForm;
+            window.liveCalc = liveCalc;
+            window.addOrUpdateCustomer = addOrUpdateCustomer;
+            window.cancelEdit = cancelEdit;
+            window.editCustomer = editCustomer;
+            window.deleteCustomer = deleteCustomer;
+            window.selectCustomer = selectCustomer;
+            window.deselectCustomer = deselectCustomer;
+            window.recordPayment = recordPayment;
+            window.renderList = renderList;
+            window.setFilter = setFilter;
+            window.cycleSort = cycleSort;
+            window.exportAll = exportAll;
+            window.exportSingle = exportSingle;
+            window.printReceipt = printReceipt;
+            window.uploadToDrive = uploadToDrive;
+            window.undo = undo;
+            window.redo = redo;
+            window.handleBulkImport = handleBulkImport;
+
+            boot();
+        })();
+    </script>
+</body>
+</html>
